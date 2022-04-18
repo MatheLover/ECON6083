@@ -1,0 +1,177 @@
+---
+title: "Assignment1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question 1 
+Data Generating Process
+```{r pressure, echo=FALSE}
+dgp_1 <- function(n, k){
+  # Parameter
+  # 1. n -- number of observations 
+  # 2. k -- number of controls 
+  
+  # Generate Di
+  ## Generate Xij
+  matrix_x <- matrix(rnorm(n*k, mean=0,sd=1), n, k)
+  ## Generate Xij mean
+  matrix_x_mean <- as.matrix(rowMeans(matrix_x))
+  ## Generate Vi
+  matrix_v <- matrix(rnorm(n*1, mean=0,sd=0.01), n, 1)
+  ## Generate Di
+  matrix_d = matrix_x_mean + matrix_v
+  
+  # Generate Ui
+  matrix_u = matrix(rnorm(n*1, mean=0,sd=1), n, 1)
+  
+  # Generate Yi
+  matrix_y = matrix_d + matrix_u
+  
+  # Rename matrix columns 
+  colnames(matrix_y) <- "yi"
+  colnames(matrix_d) <- "di"
+  colnames(matrix_x) <- c("xi,1","xi,2","xi,3","xi,4","xi,5",
+                          "xi,6","xi,7","xi,8","xi,9","xi,10",
+                          "xi,11","xi,12","xi,13","xi,14","xi,15",
+                          "xi,16","xi,17","xi,18","xi,19","xi,20")
+  colnames(matrix_u) <- "ui"
+  
+  # Column bind the matrixes 
+  dataset <- cbind(matrix_y, matrix_d, matrix_x, matrix_u)
+  
+  # Convert matrix to dataframe 
+  dataset.data.frame <- as.data.frame(dataset)
+  
+  return(dataset.data.frame)
+}
+
+
+```
+
+Part a -- Generate n=100 observations on the dependent variable Yi, the main regressor Di, and k=20 controls/covariates Xi,j,j=1,…,k, and then save it into a dataframe 
+```{r}
+dataset.data.frame_1 <- dgp_1(100, 20)
+```
+
+Part b -- Using lm(), estimate the regression of Yi against Di only and report the standard error and p-value on the coefficient of Di
+```{r}
+reg_b= lm(yi~di, data=dataset.data.frame_1)
+summary(reg_b)
+```
+
+Part c -- Using lm(), estimate the regression of Yi against Di with all 20 controls included and report the standard error and p-value on the coefficient of Di
+Compare with the standard error and p-value in part (b). Discuss the differences and if they make sense
+```{r}
+reg_c= lm(yi~di+`xi,1`+`xi,2`+`xi,3`+`xi,4`+`xi,5`+`xi,6`+`xi,7`+`xi,8`+`xi,9`+`xi,10`+`xi,11`+`xi,12`+`xi,13`+`xi,14`+`xi,15`+`xi,16`+`xi,17`+`xi,18`+`xi,19`+`xi,20`, data=dataset.data.frame_1)
+summary(reg_c)
+```
+
+Part d -- MC simulations
+Repeat parts (a)-(c) R=1000 times 
+1. Each time generating a new data set
+2. Store the results for the standard errors and p-values obtained in each repetition.
+3. Report the average standard errors (across the MC repetitions) for the OLS estimator on Di when the controls are excluded and included.
+4. Report the fraction of MC repetitions in which the OLS estimators are significant at the 5% signifincance level.
+5. Compare the results (for when the controls are excluded and included) and discuss the differences.
+
+```{r}
+# SE and P-value of Di coefficient trial -- test to see the location of SE and P-value in the regression output table for each regression 
+reg_b_trial <- summary(reg_b)$coefficients
+reg_b_trial
+reg_b_trial[2,2] # SE without control
+reg_b_trial[2,4] # P-value without control 
+reg_c_trial <- summary(reg_c)$coefficients
+reg_c_trial[2,2] # SE with control
+reg_c_trial[2,4] # P-value with control 
+```
+
+```{r}
+# Create simulated values that are reproducible
+
+# Create a empty dataframe storing SE and p-value of the coefficient of Di 
+result_frame <- data.frame(matrix(ncol=4, nrow=0))
+colnames(result_frame) <- c("SE without control", "P-value without control", "SE with control", "SE without control")
+
+# Use for loop to do part a to c for 1000 times 
+for (i in 1:1000){
+  # In each time, we generate a dataset 
+  dataset.data.frame_2 <- dgp_1(100,20)
+  
+  # Redo part b
+  reg_b_d = lm(yi~di, data=dataset.data.frame_2)
+  reg_b_d_df = summary(reg_b_d)$coefficients
+  
+  # Extract SE and P-value without control
+  reg_b_d_df[2,2] # SE without control
+  reg_b_d_df[2,4] # P-value without control 
+  
+  # Redo part c
+  reg_c_d= lm(yi~di+`xi,1`+`xi,2`+`xi,3`+`xi,4`+`xi,5`+`xi,6`+`xi,7`+`xi,8`+`xi,9`+`xi,10`+`xi,11`+`xi,12`+`xi,13`+`xi,14`+`xi,15`+`xi,16`+`xi,17`+`xi,18`+`xi,19`+`xi,20`, data=dataset.data.frame_2)
+  reg_c_d_df = summary(reg_c_d)$coefficients
+  
+  # Extract SE and P-value with control
+  reg_c_d_df[2,2] # SE with control
+  reg_c_d_df[2,4] # P-value with control
+  
+  # Rowbind SE and p-values with the previous df
+  result_frame[nrow(result_frame)+1,] <- c(reg_b_d_df[2,2],reg_b_d_df[2,4],reg_c_d_df[2,2],reg_c_d_df[2,4])
+  
+}
+```
+
+
+
+
+
+
+
+
+
+# Question 2 -- Data Generating Process (DGP)
+## Create a DGP custom function to generate data 
+```{r}
+dgp_2 <- function(n, l, a, p){
+  # Parameter:
+  # 1. n -- number of observations 
+  # 2. l -- number of instruments 
+  # 3. a -- coefficient of Di in Yi=αDi+Ui
+  # 4. p -- coefficient of Ui =ρVi+ϵi
+  
+  # Generate Di
+  ## Generate Zi,1
+  matrix_z_i1 = matrix(rnorm(n*1, mean=0,sd=1), n, 1)
+  
+  ## Generate 1/[(n)^0.5]Sigma(Zi,j)
+  ### Generate Zi,j
+  matrix_z_ij = matrix(rnorm(n*(l-1), mean=0,sd=1), n, l-1)
+  ### Perform summation in each row 
+  matrix_z_ij_sum = as.matrix(rowSums(matrix_z_ij))
+  matrix_z_ij_sum_final =  (matrix_z_ij_sum) / n^0.5
+  
+  ## Generate Vi 
+  matrix_v_i = matrix(rnorm(n*1, mean=0,sd=1), n, 1)
+  ## Generate Di
+  matrix_d_i = matrix_z_i1 + matrix_z_ij_sum_final + matrix_v_i
+  
+  # Generate Ui
+  ## Generate epsilon i
+  matrix_e_i = matrix(rnorm(n*1, mean=0,sd=1), n, 1)
+  ## Generate Ui
+  matrix_u_i = p * matrix_v_i +  matrix_e_i
+  
+  # Generate Yi
+  matrix_y_i = 2 * matrix_d_i + matrix_u_i
+  
+}
+  
+```
+
+

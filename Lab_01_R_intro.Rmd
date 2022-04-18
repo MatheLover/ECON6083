@@ -1,0 +1,374 @@
+---
+title: 'Lab 1: R basics'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Required packages:
+
+* MASS (for Boston data)
+* sandwich (for heteroskedasticity-robust or "sandwich" standard errors)
+
+# Some basic commands
+
+### Working directory
+
+Get working directory (note <tt>()</tt> which is used to distinguish functions):
+```{r}
+getwd()
+```
+
+Set working directory:
+```{r}
+?setwd()
+```
+Or in R Studio, use 
+
+* Session->Set Working Directory, or
+* Tools->Global Options.
+
+---
+
+### Vectors and matrices
+
+Generate a vector:
+```{r}
+x<-c(1,2,3)
+x
+typeof(x)
+```
+
+```{r}
+x<-c("No","Yes")
+x
+typeof(x)
+```
+
+Generate a matrix:
+```{r}
+X<-matrix(c(1,2,3,4),ncol=2)
+X
+typeof(X)
+class(X)
+```
+
+Add a vector as another column:
+```{r}
+x=c(5,6)
+Y=cbind(X,x)
+Y
+```
+
+Add a vector as another row:
+```{r}
+y=c(7,8,9)
+rbind(Y,y)
+```
+
+Random matrix: generate eight independent $N(0,1)$ random variables arranged in 4 columns:
+```{r}
+v=rnorm(8)
+v
+X=matrix(rnorm(8),ncol=4)
+X
+```
+
+Choose the mean and the standard deviation:
+```{r}
+X=matrix(rnorm(8,mean=100,sd=.1),ncol=2)
+X
+```
+
+
+Picking specific elements:
+```{r}
+X[1,2]
+```
+
+Pick an entire column (first column):
+```{r}
+X[,1]
+```
+
+Pick an entire row:
+```{r}
+X[1,]
+```
+
+Pick rows 3 & 4:
+```{r}
+X[c(3,4),]
+```
+
+
+Sequences:
+```{r}
+?seq
+x=seq(1,10,by=2)
+x
+```
+
+
+Matrix Algebra operations:
+```{r}
+X=matrix(seq(-1,-4,by=-1),ncol=2)
+Y=matrix(seq(1,4),ncol=2)
+X
+Y
+```
+
+```{r}
+X+Y
+```
+
+```{r}
+X%*%Y
+```
+
+
+
+Transpose:
+```{r}
+t(X)
+```
+
+Element-by-element operations:
+```{r}
+sqrt(Y)
+```
+
+```{r}
+X*Y
+```
+
+
+```{r}
+1/Y
+```
+
+```{r}
+Y^X
+```
+
+### Data frames
+
+This is what we call data sets in statistics (e.g. Stata): tabular data consisting of rows (observations) and columns (variables).
+
+```{r}
+x=c(1,2,3,4)
+y=c("male","male","female","female")
+X=cbind(x,y)
+X
+```
+
+When combining x and y in a matrix, x is converted into characters:
+```{r}
+X
+typeof(X)
+```
+
+Data frames can have variables (columns) of different types. There are relationships between the columns: each row is an observation.
+```{r}
+Data=data.frame(years=x,gender=as.factor(y))
+typeof(Data)
+Data
+```
+
+Note that gender is now a factor! (Factors are variables that take on limited number of values. They are used to categorize data by levels. Can be integers or characters.)
+```{r}
+class(Data$years)
+class(Data$gender)
+```
+
+
+The <tt>summary()</tt> and <tt>names()</tt> commands on X and Data:
+```{r}
+names(X)
+summary(X)
+```
+
+
+```{r}
+names(Data)
+summary(Data)
+```
+
+---
+
+# Installing packages
+
+```{r}
+install.packages("MASS", repos="https://cran.rstudio.com")
+```
+
+
+# Working with data
+
+Data can be read from external files using:
+
+* <tt>read.table()</tt>
+* <tt>read.csv()</tt>
+* <tt>read.xlsx()</tt>
+
+Many R packages come with imported data sets. We'll use them for this course.
+
+Package "MASS" containts data on housing values in Boston area. Let's load the package, and attach the data set Boston so we don't have to refer to it all the time (there can be multiple data sets in a library):
+```{r}
+library(MASS)
+library(help="MASS")
+attach(Boston)
+?Boston
+```
+
+Quick inspection of the data:
+```{r}
+summary(Boston)
+```
+
+The first 4 observations:
+```{r}
+Boston[1:4,]
+```
+
+Also the first 4 observations:
+```{r}
+head(Boston,4)
+```
+
+The last 4 observations:
+```{r}
+tail(Boston,4)
+```
+
+
+Plotting:
+```{r}
+plot(Boston)
+```
+
+```{r}
+plot(lstat,medv,xlab="% of Low Status",ylab="Value")
+```
+
+### Regression
+
+Let's run a regression for medv:
+```{r}
+reg=lm(medv~lstat+rm,data=Boston)
+reg
+```
+
+More info can be obtained by using the <tt>summary()</tt> command:
+```{r}
+summary(reg)
+```
+
+Or we can get just the coefficients using the command <tt>coef()</tt>:
+```{r}
+coef(summary(reg))
+```
+
+Or just the standard errors:
+```{r}
+coef(summary(reg))[,2]
+C <- coef(summary(reg))[c(2,3),c(1,2)]
+C
+```
+
+To get heteroskedasticity robust standard errors, use package "sandwich". 
+```{r}
+library(sandwich)
+```
+
+Construct the robust variance covariance matrix:
+```{r}
+rvcv=vcovHC(reg,type="HC")
+```
+
+The robust standard errors are on the diagonal:
+```{r}
+sqrt(diag(rvcv))
+```
+
+Let's compare with the non-robust:
+```{r}
+cbind("non-robust"=coef(summary(reg))[,2],"robust"=sqrt(diag(rvcv)))
+```
+
+
+
+
+The <tt>plot()</tt> command applied to the estimated regression object:
+```{r}
+plot(reg)
+```
+
+```{r}
+names(reg)
+```
+
+
+Let's add the regression line to the plot of medv agains lstat, but we need to adjust the intercept for the average value of the rm variable, since we exclude rm from the plot.
+
+* Pick the intercept and the coeff. on lstat:
+```{r}
+betas=reg$coefficients[1:2]
+betas
+```
+** If plot here, then no line added because control var rm is not included **
+* Shift the intercept using the average of rm and its coeff.
+```{r}
+betas[1]=betas[1]+reg$coefficients[3]*mean(rm)
+betas[1]
+```
+
+* Plot:
+```{r}
+plot(lstat,medv)
+abline(betas,col="red")
+```
+
+
+### IV regression
+
+Package: AER (Applied Econometrics with R):
+```{r}
+library(AER)
+?ivreg
+```
+
+Let's illustrate with data on cigarette consumption in CigaretteSW data set included with AER:
+```{r}
+?CigarettesSW
+data(CigarettesSW)
+attach(CigarettesSW)
+```
+
+The command <tt>data()</tt> is used to load data sets. 
+
+OLS first:
+```{r}
+summary(lm(packs~price))
+```
+
+Command <tt>ivreg()</tt> used without specifying instruments estimates OLS:
+```{r}
+summary(ivreg(packs~price))
+```
+
+Robust standard errors:
+```{r}
+summary(ivreg(packs~price),vcov=sandwich)
+```
+
+IV regression with income and tax as instruments:
+```{r}
+summary(ivreg(packs~price | income+tax), vcov=sandwich, diagnostics = TRUE)
+```
+
+The diagnostics part:
+
+* "Weak instruments" is actually just the F-test for the null hypothesis that the first-stage coefficients on the IVs are equal to zero. Thus, this is not a test for weak instruments, and rejecting $H_0$ does not mean that the instruments are strong. Strictly speaking, one cannot test if instruments are weak. Unfortunately, the label "Weak instruments" used here is very misleading. 
+* Wu-Hausman: This is the Hausman specification test, which tests if the regressors (price in this case) are exogenous. Rejecting $H_0$ implies that the OLS and IV estimates are significantly different, which suggests endogeneity of the regressors.
+* Sargan: This is the overidentifying restrictions specification test, which tests exogeneity of IVs (the null hypothesis). Rejecting the null hypothesis suggests that the instruments are endogenous (invalid).
