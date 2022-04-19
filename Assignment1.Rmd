@@ -374,3 +374,34 @@ for (i in 1:1000){
 
 ```
 
+Plot the absolute value of the simulated bias of the 2SLS estimator (on the vertical axis) against the number of IVs used (on the horizontal axis).
+```{r}
+# Create new data frame comprising of Simulated bias and number of IVs
+plot_data <- data.frame(matrix(ncol = 2, nrow = 0))
+colnames(plot_data) <- c("Simulated Bias", 
+                         "Number of IVs")
+
+# For loop to Construct dataframe for plotting
+column_tracker = 19 # 1stOverallBias column number 
+for (i in c(1,5,10,15,20,25,30,35,40)){
+  # Create column vector of number of vectors for each iv regression 
+  num_iv <- matrix(i, nrow = 1000, ncol=1) 
+  
+  # column bind column vector with simulated bias for each regression
+  iv_data_plot <- cbind(abs(iv_result_frame[,column_tracker]), num_iv)
+  
+  # add to dataframe for plotting 
+  plot_data <- rbind(plot_data, iv_data_plot)
+  
+  # increment column tracker
+  column_tracker <- column_tracker +  1
+}
+plot_data
+
+# plot simulated bias vs number of IVs
+plot(as.factor(plot_data$V2), plot_data$V1)
+# c(rep(1, 1000),rep(5, 1000),rep(10, 1000),rep(15, 1000),
+#                     rep(20, 1000),rep(25, 1000),rep(30, 1000),rep(35, 1000),rep(40, 1000))
+as.factor(plot_data$V2)
+```
+
