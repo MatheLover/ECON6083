@@ -276,7 +276,7 @@ di_9 <- iv_di_coef[2,2]
 iv_result_frame[nrow(iv_result_frame)+1,] <- c(di_1,di_2,di_3,di_4,di_5,di_6,di_7,di_8,di_9)
 iv_result_frame
 ```
-
+Run 1000 times and save estimates 
 ```{r}
 # Create a empty dataframe storing estimator of Di 
 iv_result_frame <- data.frame(matrix(ncol = 9, nrow = 0))
@@ -338,5 +338,22 @@ for(i in 1:1000){
     c(di_1, di_2, di_3, di_4, di_5, di_6, di_7, di_8, di_9)
   
 }
+```
+
+Calculate simulated bias 
+```{r}
+# Generate new column -- a(hat) - a(=2 in this case )
+for(i in 1:ncol(iv_result_frame)){
+  iv_result_frame[paste(as.character(i*5), "Bias")] <- iv_result_frame[,i] - 2
+}
+iv_result_frame["1stBias"] <- iv_result_frame["Only the first IV Zi,1"] - 2
+iv_result_frame["5thBias"] <- iv_result_frame["The first 5 IVs Zi,1,…,Zi,5"] -2
+iv_result_frame["10thBias"] <- iv_result_frame["The first 10 IVs"] - 2
+iv_result_frame["10thBias"] <- iv_result_frame["The first 15 IVs"] -2 
+iv_result_frame["15thBias"] <- iv_result_frame["The first 20 IVs"] -2
+iv_result_frame["25thBias"] <- iv_result_frame["The first 25 IVs"] -2
+iv_result_frame["30thBias"] <- iv_result_frame["The first 30 IVs"] -2
+iv_result_frame["35thBias"] <- iv_result_frame["The first 35 IVs"] -2
+iv_result_frame["40thBias"] <- iv_result_frame["All 40 IVs"] -2
 ```
 
