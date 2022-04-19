@@ -238,41 +238,105 @@ IVmodel <- ivreg(yi~di | data.frame.iv[,1:1],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_1 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:5],data=data.frame.iv)
+matrix_df <- as.matrix(data.frame.iv)
+
+IVmodel <- ivreg(yi~di | matrix_df[,1:5],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_2 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:10],data=data.frame.iv)
+IVmodel <- ivreg(yi~di | matrix_df[,1:10],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_3 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:15],data=data.frame.iv)
+IVmodel <- ivreg(yi~di | matrix_df[,1:15],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_4 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:20],data=data.frame.iv)
+IVmodel <- ivreg(yi~di | matrix_df[,1:20],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_5 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:25],data=data.frame.iv)
+IVmodel <- ivreg(yi~di | matrix_df[,1:25],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_6 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:30],data=data.frame.iv)
+IVmodel <- ivreg(yi~di | matrix_df[,1:30],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_7 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:35],data=data.frame.iv)
+IVmodel <- ivreg(yi~di | matrix_df[,1:35],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_8 <- iv_di_coef[2,2]
 
-IVmodel <- ivreg(yi~di | data.frame.iv[,1:40],data=data.frame.iv)
+IVmodel <- ivreg(yi~di | matrix_df[,1:40],data=data.frame.iv)
 iv_di_coef <- summary(IVmodel)$coefficients 
 di_9 <- iv_di_coef[2,2]
 
 # Add to dataframe 
 iv_result_frame[nrow(iv_result_frame)+1,] <- c(di_1,di_2,di_3,di_4,di_5,di_6,di_7,di_8,di_9)
-
+iv_result_frame
 ```
 
+```{r}
+# Create a empty dataframe storing estimator of Di 
+iv_result_frame <- data.frame(matrix(ncol = 9, nrow = 0))
+colnames(iv_result_frame) <- c(
+  "Only the first IV Zi,1",
+  "The first 5 IVs Zi,1,…,Zi,5",
+  "The first 10 IVs",
+  "The first 15 IVs",
+  "The first 20 IVs",
+  "The first 25 IVs",
+  "The first 30 IVs",
+  "The first 35 IVs",
+  "All 40 IVs"
+)
+for(i in 1:1000){
+  # Generate dataset 
+  data.frame.iv <- dgp_2(100, 40, 2, 10)
+  
+  IVmodel <- ivreg(yi ~ di | data.frame.iv[, 1:1], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_1 <- iv_di_coef[2, 2]
+  
+  matrix_df <- as.matrix(data.frame.iv)
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:5], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_2 <- iv_di_coef[2, 2]
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:10], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_3 <- iv_di_coef[2, 2]
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:15], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_4 <- iv_di_coef[2, 2]
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:20], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_5 <- iv_di_coef[2, 2]
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:25], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_6 <- iv_di_coef[2, 2]
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:30], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_7 <- iv_di_coef[2, 2]
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:35], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_8 <- iv_di_coef[2, 2]
+  
+  IVmodel <- ivreg(yi ~ di | matrix_df[, 1:40], data = data.frame.iv)
+  iv_di_coef <- summary(IVmodel)$coefficients
+  di_9 <- iv_di_coef[2, 2]
+  
+  # Add to dataframe
+  iv_result_frame[nrow(iv_result_frame) + 1, ] <-
+    c(di_1, di_2, di_3, di_4, di_5, di_6, di_7, di_8, di_9)
+  
+}
+```
 
