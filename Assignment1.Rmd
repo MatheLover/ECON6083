@@ -343,17 +343,34 @@ for(i in 1:1000){
 Calculate simulated bias 
 ```{r}
 # Generate new column -- a(hat) - a(=2 in this case )
-for(i in 1:ncol(iv_result_frame)){
-  iv_result_frame[paste(as.character(i*5), "Bias")] <- iv_result_frame[,i] - 2
-}
+# for(i in 1:ncol(iv_result_frame)){
+#   iv_result_frame[paste(as.character( (i-1)* 5), "Bias")] <- iv_result_frame[,i] - 2
+# }
 iv_result_frame["1stBias"] <- iv_result_frame["Only the first IV Zi,1"] - 2
 iv_result_frame["5thBias"] <- iv_result_frame["The first 5 IVs Zi,1,…,Zi,5"] -2
 iv_result_frame["10thBias"] <- iv_result_frame["The first 10 IVs"] - 2
-iv_result_frame["10thBias"] <- iv_result_frame["The first 15 IVs"] -2 
 iv_result_frame["15thBias"] <- iv_result_frame["The first 20 IVs"] -2
+iv_result_frame["20thBias"] <- iv_result_frame["The first 20 IVs"] -2
 iv_result_frame["25thBias"] <- iv_result_frame["The first 25 IVs"] -2
 iv_result_frame["30thBias"] <- iv_result_frame["The first 30 IVs"] -2
 iv_result_frame["35thBias"] <- iv_result_frame["The first 35 IVs"] -2
 iv_result_frame["40thBias"] <- iv_result_frame["All 40 IVs"] -2
+```
+
+```{r}
+# Calculate means of bias separately for each column and create a new column to store simulated bias
+for (i in 1:1000){
+  iv_result_frame[i,"1stOverallBias"] = mean(iv_result_frame$`1stBias`[i:1000])
+  iv_result_frame[i,"5thOverallBias"] = mean(iv_result_frame$`5thBias`[i:1000])
+  iv_result_frame[i,"10thOverallBias"] = mean(iv_result_frame$`10thBias`[i:1000])
+  iv_result_frame[i,"15thOverallBias"] = mean(iv_result_frame$`15thBias`[i:1000])
+  iv_result_frame[i,"20thOverallBias"] = mean(iv_result_frame$`20thBias`[i:1000])
+  iv_result_frame[i,"25thOverallBias"] = mean(iv_result_frame$`25thBias`[i:1000])
+  iv_result_frame[i,"30thOverallBias"] = mean(iv_result_frame$`30thBias`[i:1000])
+  iv_result_frame[i,"35thOverallBias"] = mean(iv_result_frame$`35thBias`[i:1000])
+  iv_result_frame[i,"40thOverallBias"] = mean(iv_result_frame$`40thBias`[i:1000])
+
+}
+
 ```
 
