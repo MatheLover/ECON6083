@@ -1,6 +1,7 @@
 ---
 title: "Assignment1"
 output: html_document
+author: CHAN Yat Tin 3035869651 JIANG Rui 3035869637 
 ---
 
 ```{r setup, include=FALSE}
@@ -249,7 +250,7 @@ data.frame.iv <- dgp_2(100, 40, 2, 10)
 ```
 
 Part b 
-1. Perform R=103 independent MC repetitions, each time generating a new set of data using the DGP in (a) with n=100 and ℓ=40.
+1. Perform R=1000 independent MC repetitions, each time generating a new set of data using the DGP in (a) with n=100 and ℓ=40.
 2. At each MC repetition, compute the 2SLS estimators for the IV regression of Yi against Di using the following IVs:
     Only the first IV Zi,1.
     The first 5 IVs Zi,1,…,Zi,5.

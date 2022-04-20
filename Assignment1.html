@@ -9,6 +9,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="CHAN Yat Tin 3035869651 JIANG Rui 3035869637" />
 
 
 <title>Assignment1</title>
@@ -164,6 +165,7 @@ pre code {
 
 
 <h1 class="title toc-ignore">Assignment1</h1>
+<h4 class="author">CHAN Yat Tin 3035869651 JIANG Rui 3035869637</h4>
 
 </div>
 
@@ -391,7 +393,7 @@ frac_ctrl &lt;- (length(p_ctrl)) / 1000</code></pre>
 }</code></pre>
 <p>trial</p>
 <pre class="r"><code>data.frame.iv &lt;- dgp_2(100, 40, 2, 10)</code></pre>
-<p>Part b 1. Perform R=103 independent MC repetitions, each time generating a new set of data using the DGP in (a) with n=100 and ℓ=40. 2. At each MC repetition, compute the 2SLS estimators for the IV regression of Yi against Di using the following IVs: Only the first IV Zi,1. The first 5 IVs Zi,1,…,Zi,5. The first 10 IVs. The first 15 IVs. The first 20 IVs. The first 25 IVs. The first 30 IVs. The first 35 IVs. All 40 IVs. 3. Save estimates for all the 9 2SLS estimators described above obtained at each MC repetition. 4. Compute the simulated bias 5. Plot the absolute value of the simulated bias of the 2SLS estimator (on the vertical axis) against the number of IVs used (on the horizontal axis). 6. Discuss the effect of the number of IVs on the simulated bias of the 2SLS. Does using many IVs result in substantial bias?</p>
+<p>Part b 1. Perform R=1000 independent MC repetitions, each time generating a new set of data using the DGP in (a) with n=100 and ℓ=40. 2. At each MC repetition, compute the 2SLS estimators for the IV regression of Yi against Di using the following IVs: Only the first IV Zi,1. The first 5 IVs Zi,1,…,Zi,5. The first 10 IVs. The first 15 IVs. The first 20 IVs. The first 25 IVs. The first 30 IVs. The first 35 IVs. All 40 IVs. 3. Save estimates for all the 9 2SLS estimators described above obtained at each MC repetition. 4. Compute the simulated bias 5. Plot the absolute value of the simulated bias of the 2SLS estimator (on the vertical axis) against the number of IVs used (on the horizontal axis). 6. Discuss the effect of the number of IVs on the simulated bias of the 2SLS. Does using many IVs result in substantial bias?</p>
 <p>Test</p>
 <pre class="r"><code># Create a empty dataframe storing estimator of Di 
 iv_result_frame &lt;- data.frame(matrix(ncol=9, nrow=0))
