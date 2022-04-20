@@ -58,8 +58,6 @@ dgp_1 <- function(n, k){
 
 Part a -- Generate n=100 observations on the dependent variable Yi, the main regressor Di, and k=20 controls/covariates Xi,j,j=1,…,k, and then save it into a dataframe 
 ```{r}
-# Specify seed to ensure reproducibility 
-set.seed(12345)
 dataset.data.frame_1 <- dgp_1(100, 20)
 ```
 
@@ -68,8 +66,6 @@ Part b -- Using lm(), estimate the regression of Yi against Di only and report t
 reg_b <- lm(yi~di, data=dataset.data.frame_1)
 summary(reg_b)
 ```
-The standard error and p-value on the coefficient of Di are 0.42435 and 0.00265 respectively.  
-
 
 Part c -- Using lm(), estimate the regression of Yi against Di with all 20 controls included and report the standard error and p-value on the coefficient of Di
 Compare with the standard error and p-value in part (b). Discuss the differences and if they make sense
@@ -77,11 +73,6 @@ Compare with the standard error and p-value in part (b). Discuss the differences
 reg_c= lm(yi~di+`xi,1`+`xi,2`+`xi,3`+`xi,4`+`xi,5`+`xi,6`+`xi,7`+`xi,8`+`xi,9`+`xi,10`+`xi,11`+`xi,12`+`xi,13`+`xi,14`+`xi,15`+`xi,16`+`xi,17`+`xi,18`+`xi,19`+`xi,20`, data=dataset.data.frame_1)
 summary(reg_c)
 ```
-
-The standard error and p-value on the coefficient of Di are 10.5245 and 0.312 respectively.
-
-Summary: Compared with part b, the SE and P-value both increase. The result is understandable because including irrelevant 
-control variables makes our OLS estimates less accurate.
 
 Part d -- MC simulations
 Repeat parts (a)-(c) R=1000 times 
@@ -103,15 +94,14 @@ reg_c_trial[2,4] # P-value with control
 ```
 
 ```{r}
+# Create simulated values that are reproducible
+
 # Create a empty dataframe storing SE and p-value of the coefficient of Di 
 result_frame <- data.frame(matrix(ncol=4, nrow=0))
 colnames(result_frame) <- c("SE without control", "P-value without control", "SE with control", "P-value with control")
 
 # Use for loop to do part a to c for 1000 times 
 for (i in 1:1000){
-  # Specify seeds to ensure that data generated in each iteration are reproducible in every run
-  set.seed(i)
-  
   # In each time, we generate a dataset 
   dataset.data.frame_2 <- dgp_1(100,20)
   
@@ -141,14 +131,10 @@ Calculate average SE without and with controls across all MC repetitions
 ```{r}
 # SE without controls
 avg_SE_noctrl <- mean(result_frame$`SE without control`) 
-avg_SE_noctrl
 
 # SE with controls
 avg_SE_ctrl <- mean(result_frame$`SE with control`)
-avg_SE_ctrl
 ```
-The average SE for OLS estimator on Di when the controls are excluded is 0.4513832.
-The average SE for OLS estimator on Di when the controls are included is 11.33974. 
 
 Report the fraction of MC repetitions in which the OLS estimators are significant at the 5% significance level
 ```{r}
@@ -160,10 +146,7 @@ frac_no_ctrl <- (length(p_no_ctrl)) / 1000
 p_ctrl <- result_frame$`P-value with control`[result_frame$`P-value with control` < 0.05 ]
 frac_ctrl <- (length(p_ctrl)) / 1000
 ```
-The fraction of MC repetitions in which the OLS estimators are significant when we exclude controls is 0.579.
-The fraction of MC repetitions in which the OLS estimators are significant when we include controls is 0.053.
 
-Summary: From the figures, we know that including too many irrelevant covariates will increase the SE and render OLS estimator insignificant. And especially MC simulation exacerbates inaccuracies in OLS estimates. 
 
 
 
@@ -333,9 +316,6 @@ colnames(iv_result_frame) <- c(
   "All 40 IVs"
 )
 for(i in 1:1000){
-  # Specify seed to ensure reproducibility
-  set.seed(1000+i)
-  
   # Generate dataset 
   data.frame.iv <- dgp_2(100, 40, 2, 10)
   
@@ -459,9 +439,9 @@ Plot the absolute value of the simulated bias of the 2SLS estimator (on the vert
 plot_data <- cbind(c(1,5,10,15,20,25,30,35,40), simulated_bias)
 plot_data <- as.data.frame((plot_data))
 # plot simulated bias vs number of IVs
-plot(as.factor(plot_data$V1),plot_data$V2,xlab="Number of IVs", ylab="Simulated Bias", main="Simulated Bias of 2SLS estimators vs Number of IVs")
+plot(as.factor(plot_data$V1),plot_data$V2)
 # c(rep(1, 1000),rep(5, 1000),rep(10, 1000),rep(15, 1000),
 #                     rep(20, 1000),rep(25, 1000),rep(30, 1000),rep(35, 1000),rep(40, 1000))
 # as.factor(plot_data$V2)
 ```
-Summary: The absolute value of Simulated Bias increases with the Number of IVs. Using many IVs does result in significant bias.  
+
