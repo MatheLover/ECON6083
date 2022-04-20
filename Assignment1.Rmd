@@ -7,10 +7,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Question 1 
 Data Generating Process
 ```{r pressure, echo=FALSE}
@@ -387,9 +383,6 @@ for(i in 1:1000){
 Calculate simulated bias 
 ```{r}
 # Generate new column -- a(hat) - a(=2 in this case )
-# for(i in 1:ncol(iv_result_frame)){
-#   iv_result_frame[paste(as.character( (i-1)* 5), "Bias")] <- iv_result_frame[,i] - 2
-# }
 iv_result_frame["1stBias"] <- iv_result_frame["Only the first IV Zi,1"] - 2
 iv_result_frame["5thBias"] <- iv_result_frame["The first 5 IVs Zi,1,…,Zi,5"] -2
 iv_result_frame["10thBias"] <- iv_result_frame["The first 10 IVs"] - 2
@@ -403,20 +396,6 @@ iv_result_frame["40thBias"] <- iv_result_frame["All 40 IVs"] -2
 
 ```{r}
 # Calculate means of bias separately for each column and create a new column to store simulated bias
-# for (i in 1:1000){
-  # iv_result_frame[i,"1stOverallBias"] = mean(iv_result_frame$`1stBias`[i:1000])
-  # iv_result_frame[i,"5thOverallBias"] = mean(iv_result_frame$`5thBias`[i:1000])
-  # iv_result_frame[i,"10thOverallBias"] = mean(iv_result_frame$`10thBias`[i:1000])
-  # iv_result_frame[i,"15thOverallBias"] = mean(iv_result_frame$`15thBias`[i:1000])
-  # iv_result_frame[i,"20thOverallBias"] = mean(iv_result_frame$`20thBias`[i:1000])
-  # iv_result_frame[i,"25thOverallBias"] = mean(iv_result_frame$`25thBias`[i:1000])
-  # iv_result_frame[i,"30thOverallBias"] = mean(iv_result_frame$`30thBias`[i:1000])
-  # iv_result_frame[i,"35thOverallBias"] = mean(iv_result_frame$`35thBias`[i:1000])
-  # iv_result_frame[i,"40thOverallBias"] = mean(iv_result_frame$`40thBias`[i:1000])
-  
-# }
-  
-
 simulated_bias <- rbind(
   mean(iv_result_frame$`1stBias`),
   mean(iv_result_frame$`5thBias`),
@@ -435,33 +414,13 @@ simulated_bias  <- abs(simulated_bias)
 Plot the absolute value of the simulated bias of the 2SLS estimator (on the vertical axis) against the number of IVs used (on the horizontal axis).
 ```{r}
 # Create new data frame comprising of Simulated bias and number of IVs
-# plot_data <- data.frame(matrix(ncol = 2, nrow = 0))
-# colnames(plot_data) <- c("Simulated Bias", 
-                         # "Number of IVs")
-
-# For loop to Construct dataframe for plotting
-# column_tracker = 19 # 1stOverallBias column number 
-# for (i in c(1,5,10,15,20,25,30,35,40)){
-#   # Create column vector of number of vectors for each iv regression 
-#   num_iv <- matrix(i, nrow = 1000, ncol=1) 
-#   
-#   # column bind column vector with simulated bias for each regression
-#   iv_data_plot <- cbind(abs(iv_result_frame[,column_tracker]), num_iv)
-#   
-#   # add to dataframe for plotting 
-#   plot_data <- rbind(plot_data, iv_data_plot)
-#   
-#   # increment column tracker
-#   column_tracker <- column_tracker +  1
-# }
-# plot_data
-
 plot_data <- cbind(c(1,5,10,15,20,25,30,35,40), simulated_bias)
 plot_data <- as.data.frame((plot_data))
+
 # plot simulated bias vs number of IVs
 plot(as.factor(plot_data$V1),plot_data$V2,xlab="Number of IVs", ylab="Simulated Bias", main="Simulated Bias of 2SLS estimators vs Number of IVs")
-# c(rep(1, 1000),rep(5, 1000),rep(10, 1000),rep(15, 1000),
-#                     rep(20, 1000),rep(25, 1000),rep(30, 1000),rep(35, 1000),rep(40, 1000))
-# as.factor(plot_data$V2)
 ```
+
+
+
 Summary: The absolute value of Simulated Bias increases with the Number of IVs. Using many IVs does result in significant bias.  
