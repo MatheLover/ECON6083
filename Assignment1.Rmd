@@ -98,7 +98,7 @@ reg_c_trial[2,4] # P-value with control
 
 # Create a empty dataframe storing SE and p-value of the coefficient of Di 
 result_frame <- data.frame(matrix(ncol=4, nrow=0))
-colnames(result_frame) <- c("SE without control", "P-value without control", "SE with control", "SE without control")
+colnames(result_frame) <- c("SE without control", "P-value without control", "SE with control", "P-value with control")
 
 # Use for loop to do part a to c for 1000 times 
 for (i in 1:1000){
@@ -127,6 +127,26 @@ for (i in 1:1000){
 }
 ```
 
+Calculate average SE without and with controls across all MC repetitions 
+```{r}
+# SE without controls
+avg_SE_noctrl <- mean(result_frame$`SE without control`) 
+
+# SE with controls
+avg_SE_ctrl <- mean(result_frame$`SE with control`)
+```
+
+Report the fraction of MC repetitions in which the OLS estimators are significant at the 5% significance level
+```{r}
+# P-value without control 
+p_no_ctrl <- result_frame$`P-value without control`[result_frame$`P-value without control` < 0.05 ]
+frac_no_ctrl <- (length(p_no_ctrl)) / 1000
+
+# P-value with control 
+p_ctrl <- result_frame$`P-value with control`[result_frame$`P-value with control` < 0.05 ]
+frac_ctrl <- (length(p_ctrl)) / 1000
+```
+
 
 
 
@@ -136,6 +156,11 @@ for (i in 1:1000){
 
 
 # Question 2 -- Data Generating Process (DGP)
+Load Package 
+```{r}
+library(AER)
+```
+
 Part a -- Define a custom function that generates n observations from the following data generating process (DGP)
 ```{r}
 dgp_2 <- function(n, l, a, p){
@@ -229,7 +254,6 @@ Part b
 
 Test 
 ```{r}
-library(AER)
 # Create a empty dataframe storing estimator of Di 
 iv_result_frame <- data.frame(matrix(ncol=9, nrow=0))
 colnames(iv_result_frame) <- c("Only the first IV Zi,1", "The first 5 IVs Zi,1,…,Zi,5", "The first 10 IVs", "The first 15 IVs","The first 20 IVs", "The first 25 IVs", "The first 30 IVs", "The first 35 IVs","All 40 IVs")
@@ -359,49 +383,65 @@ iv_result_frame["40thBias"] <- iv_result_frame["All 40 IVs"] -2
 
 ```{r}
 # Calculate means of bias separately for each column and create a new column to store simulated bias
-for (i in 1:1000){
-  iv_result_frame[i,"1stOverallBias"] = mean(iv_result_frame$`1stBias`[i:1000])
-  iv_result_frame[i,"5thOverallBias"] = mean(iv_result_frame$`5thBias`[i:1000])
-  iv_result_frame[i,"10thOverallBias"] = mean(iv_result_frame$`10thBias`[i:1000])
-  iv_result_frame[i,"15thOverallBias"] = mean(iv_result_frame$`15thBias`[i:1000])
-  iv_result_frame[i,"20thOverallBias"] = mean(iv_result_frame$`20thBias`[i:1000])
-  iv_result_frame[i,"25thOverallBias"] = mean(iv_result_frame$`25thBias`[i:1000])
-  iv_result_frame[i,"30thOverallBias"] = mean(iv_result_frame$`30thBias`[i:1000])
-  iv_result_frame[i,"35thOverallBias"] = mean(iv_result_frame$`35thBias`[i:1000])
-  iv_result_frame[i,"40thOverallBias"] = mean(iv_result_frame$`40thBias`[i:1000])
+# for (i in 1:1000){
+  # iv_result_frame[i,"1stOverallBias"] = mean(iv_result_frame$`1stBias`[i:1000])
+  # iv_result_frame[i,"5thOverallBias"] = mean(iv_result_frame$`5thBias`[i:1000])
+  # iv_result_frame[i,"10thOverallBias"] = mean(iv_result_frame$`10thBias`[i:1000])
+  # iv_result_frame[i,"15thOverallBias"] = mean(iv_result_frame$`15thBias`[i:1000])
+  # iv_result_frame[i,"20thOverallBias"] = mean(iv_result_frame$`20thBias`[i:1000])
+  # iv_result_frame[i,"25thOverallBias"] = mean(iv_result_frame$`25thBias`[i:1000])
+  # iv_result_frame[i,"30thOverallBias"] = mean(iv_result_frame$`30thBias`[i:1000])
+  # iv_result_frame[i,"35thOverallBias"] = mean(iv_result_frame$`35thBias`[i:1000])
+  # iv_result_frame[i,"40thOverallBias"] = mean(iv_result_frame$`40thBias`[i:1000])
+  
+# }
+  
 
-}
+simulated_bias <- rbind(
+  mean(iv_result_frame$`1stBias`),
+  mean(iv_result_frame$`5thBias`),
+  mean(iv_result_frame$`10thBias`),
+  mean(iv_result_frame$`15thBias`),
+  mean(iv_result_frame$`20thBias`),
+  mean(iv_result_frame$`25thBias`),
+  mean(iv_result_frame$`30thBias`),
+  mean(iv_result_frame$`35thBias`),
+  mean(iv_result_frame$`40thBias`)
+)
 
+simulated_bias  <- abs(simulated_bias)
 ```
 
 Plot the absolute value of the simulated bias of the 2SLS estimator (on the vertical axis) against the number of IVs used (on the horizontal axis).
 ```{r}
 # Create new data frame comprising of Simulated bias and number of IVs
-plot_data <- data.frame(matrix(ncol = 2, nrow = 0))
-colnames(plot_data) <- c("Simulated Bias", 
-                         "Number of IVs")
+# plot_data <- data.frame(matrix(ncol = 2, nrow = 0))
+# colnames(plot_data) <- c("Simulated Bias", 
+                         # "Number of IVs")
 
 # For loop to Construct dataframe for plotting
-column_tracker = 19 # 1stOverallBias column number 
-for (i in c(1,5,10,15,20,25,30,35,40)){
-  # Create column vector of number of vectors for each iv regression 
-  num_iv <- matrix(i, nrow = 1000, ncol=1) 
-  
-  # column bind column vector with simulated bias for each regression
-  iv_data_plot <- cbind(abs(iv_result_frame[,column_tracker]), num_iv)
-  
-  # add to dataframe for plotting 
-  plot_data <- rbind(plot_data, iv_data_plot)
-  
-  # increment column tracker
-  column_tracker <- column_tracker +  1
-}
-plot_data
+# column_tracker = 19 # 1stOverallBias column number 
+# for (i in c(1,5,10,15,20,25,30,35,40)){
+#   # Create column vector of number of vectors for each iv regression 
+#   num_iv <- matrix(i, nrow = 1000, ncol=1) 
+#   
+#   # column bind column vector with simulated bias for each regression
+#   iv_data_plot <- cbind(abs(iv_result_frame[,column_tracker]), num_iv)
+#   
+#   # add to dataframe for plotting 
+#   plot_data <- rbind(plot_data, iv_data_plot)
+#   
+#   # increment column tracker
+#   column_tracker <- column_tracker +  1
+# }
+# plot_data
 
+plot_data <- cbind(c(1,5,10,15,20,25,30,35,40), simulated_bias)
+plot_data <- as.data.frame((plot_data))
 # plot simulated bias vs number of IVs
-plot(as.factor(plot_data$V2), plot_data$V1)
+plot(as.factor(plot_data$V1),plot_data$V2)
 # c(rep(1, 1000),rep(5, 1000),rep(10, 1000),rep(15, 1000),
 #                     rep(20, 1000),rep(25, 1000),rep(30, 1000),rep(35, 1000),rep(40, 1000))
-as.factor(plot_data$V2)
+# as.factor(plot_data$V2)
 ```
 
