@@ -101,9 +101,8 @@ coef(CV,s=CV$lambda.1se)
 ```
 Part E
 ```{r}
-finyes <- Rossi$fin[Rossi$fin == "yes"]
-Logit_E <- glm(arrest~finyes+age+raceother+wexpyes+`marnot married`+paroyes+prio+educ+Wks,data=Rossi,family=binomial(link="logit"))
-coef(summary(Logit_E))
-summary(margins(Logit_E,variables="fin"))
+Post.Logit <- glm(arrest~fin+age+wexp,data=Rossi,family=binomial(link="logit"))
+coef(summary(Post.Logit))
+summary(margins(Post.Logit))
 ```
  
