@@ -21,6 +21,7 @@ install.packages("margins")
 library(carData)
 library(glmnetUtils)
 library(margins)
+library(glmnetUtils)
 ```
 
 ## Dataset Info
@@ -56,9 +57,30 @@ Part A -- Estimate the following logit model using glm():
 2. Report the AME for fin including the 95% confidence interval. Does financial aid have a significant effect on re-arrests?
 ```{r}
 Logit <- glm(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family=binomial(link="logit"))
-summary(Logit)
+coef(summary(Logit))
 summary(margins(Logit,variables="fin"))
 ```
- Since the p-value is 0.0925 > 0.05, financial aid does not have a significant effect on re-arrests.
+ 
+
+Since the p-value is 0.0925 > 0.05, financial aid does not have a significant effect on re-arrests.
+ 
+Part B
+```{r}
+# Use glmnet() to calculate adaptive LASSO
+Lasso <- glmnet(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family="binomial",alpha=0,lambda=0,standardize=FALSE, intercept=FALSE)
+
+# Focus on finyes 
+coef(Lasso)
+
+# Generate the penalty weights
+w=1/abs(coef(Lasso)[-1])
+w[1:2]=0
+w
+```
+ 
+Part C 
+```{r}
+
+```
  
  
