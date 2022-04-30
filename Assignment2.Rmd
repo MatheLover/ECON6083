@@ -80,7 +80,30 @@ w
  
 Part C 
 ```{r}
-
+set.seed(6083,sample.kind="Rejection")
+CV_AL=cv.glmnet(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family="binomial",alpha=0,standardize=FALSE, intercept=FALSE,penalty.factor=w)
+coef(CV_AL,CV_AL$lambda.1se)
 ```
  
+Part D
+```{r}
+X=model.matrix(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi)[,-1]
+y=Rossi$arrest
+
+# Adjust w
+adjust_w <- w
+adjust_w <- w[c(2,3,4,5,6,8,10,11,12)]
+adjust_w 
+
+CV=cv.glmnet(X,y,family="binomial",alpha=0,standardize=FALSE, penalty.factor=adjust_w, nfolds=10)
+plot(CV)
+coef(CV,s=CV$lambda.1se)
+```
+Part E
+```{r}
+finyes <- Rossi$fin[Rossi$fin == "yes"]
+Logit_E <- glm(arrest~finyes+age+raceother+wexpyes+`marnot married`+paroyes+prio+educ+Wks,data=Rossi,family=binomial(link="logit"))
+coef(summary(Logit_E))
+summary(margins(Logit_E,variables="fin"))
+```
  
