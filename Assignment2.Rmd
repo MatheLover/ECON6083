@@ -1,0 +1,64 @@
+---
+title: "Assignment2"
+author: "JIANG Rui CHAN Yat Tin"
+date: "4/30/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Install packages 
+```{r}
+install.packages("carData")
+install.packages("glmnetUtils")
+install.packages("margins")
+```
+
+## Load packages 
+```{r}
+library(carData)
+library(glmnetUtils)
+library(margins)
+```
+
+## Dataset Info
+The data set contains information on ex-convicts collected during a period of 52 weeks after their release:
+
+1. arrest 1 if arrested.
+
+2. fin yes if received financial aid.
+
+3. Additional variables on age, marital status, work experience, education, and etc.
+
+4. week The week of first arrest after release. 52 if not arrested during the period.
+
+5. The variables emp1–emp52 track their employment status by week with value yes if employed.
+
+Generate a new variable Wks that measures the fraction of time an ex-convict was unemployed before re-arrested or until the end of the 52 weeks period:
+```{r}
+?Rossi
+Rossi_df <- as.data.frame(Rossi)
+summary(Rossi)
+Rossi$Weeks_worked=0
+for (i in 1:nrow(Rossi)){
+  last_week_col=Rossi$week[i]+10 #last week before arrest column number
+  for (j in 11:last_week_col){
+  Rossi$Weeks_worked[i]=Rossi$Weeks_worked[i]+(Rossi[i,j]=="yes")
+  }
+}
+Rossi$Wks=(Rossi$week-Rossi$Weeks_worked)/Rossi$week
+```
+
+Part A -- Estimate the following logit model using glm():
+1. Report the estimattion results using the summary() command.
+2. Report the AME for fin including the 95% confidence interval. Does financial aid have a significant effect on re-arrests?
+```{r}
+Logit <- glm(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family=binomial(link="logit"))
+summary(Logit)
+summary(margins(Logit,variables="fin"))
+```
+ Since the p-value is 0.0925 > 0.05, financial aid does not have a significant effect on re-arrests.
+ 
+ 

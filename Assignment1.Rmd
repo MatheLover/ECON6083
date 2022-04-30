@@ -22,7 +22,7 @@ dgp_1 <- function(n, k){
   ## Generate Xij mean
   matrix_x_mean <- as.matrix(rowMeans(matrix_x))
   ## Generate Vi
-  matrix_v <- matrix(rnorm(n*1, mean=0,sd=0.01), n, 1)
+  matrix_v <- matrix(rnorm(n*1, mean=0,sd=0.1), n, 1)  #WARNING : 0.01 is variance, not sd. Please change to 0.1 instead
   ## Generate Di
   matrix_d <- matrix_x_mean + matrix_v
   
@@ -65,7 +65,7 @@ Part b -- Using lm(), estimate the regression of Yi against Di only and report t
 reg_b <- lm(yi~di, data=dataset.data.frame_1)
 summary(reg_b)
 ```
-The standard error and p-value on the coefficient of Di are 0.42435 and 0.00265 respectively.  
+The standard error and p-value on the coefficient of Di are 0.38459 and 0.000195 respectively.  
 
 
 Part c -- Using lm(), estimate the regression of Yi against Di with all 20 controls included and report the standard error and p-value on the coefficient of Di
@@ -75,7 +75,7 @@ reg_c= lm(yi~di+`xi,1`+`xi,2`+`xi,3`+`xi,4`+`xi,5`+`xi,6`+`xi,7`+`xi,8`+`xi,9`+`
 summary(reg_c)
 ```
 
-The standard error and p-value on the coefficient of Di are 10.5245 and 0.312 respectively.
+The standard error and p-value on the coefficient of Di are 1.05246 and 0.0649 respectively.
 
 Summary: Compared with part b, the SE and P-value both increase. The result is understandable because including irrelevant 
 control variables makes our OLS estimates less accurate.
@@ -83,9 +83,13 @@ control variables makes our OLS estimates less accurate.
 Part d -- MC simulations
 Repeat parts (a)-(c) R=1000 times 
 1. Each time generating a new data set
+
 2. Store the results for the standard errors and p-values obtained in each repetition.
+
 3. Report the average standard errors (across the MC repetitions) for the OLS estimator on Di when the controls are excluded and included.
+
 4. Report the fraction of MC repetitions in which the OLS estimators are significant at the 5% signifincance level.
+
 5. Compare the results (for when the controls are excluded and included) and discuss the differences.
 
 ```{r}
@@ -144,21 +148,23 @@ avg_SE_noctrl
 avg_SE_ctrl <- mean(result_frame$`SE with control`)
 avg_SE_ctrl
 ```
-The average SE for OLS estimator on Di when the controls are excluded is 0.4513832.
-The average SE for OLS estimator on Di when the controls are included is 11.33974. 
+The average SE for OLS estimator on Di when the controls are excluded is 0.4122851.
+The average SE for OLS estimator on Di when the controls are included is 1.133974. 
 
 Report the fraction of MC repetitions in which the OLS estimators are significant at the 5% significance level
 ```{r}
 # P-value without control 
 p_no_ctrl <- result_frame$`P-value without control`[result_frame$`P-value without control` < 0.05 ]
 frac_no_ctrl <- (length(p_no_ctrl)) / 1000
+frac_no_ctrl
 
 # P-value with control 
 p_ctrl <- result_frame$`P-value with control`[result_frame$`P-value with control` < 0.05 ]
 frac_ctrl <- (length(p_ctrl)) / 1000
+frac_ctrl
 ```
-The fraction of MC repetitions in which the OLS estimators are significant when we exclude controls is 0.579.
-The fraction of MC repetitions in which the OLS estimators are significant when we include controls is 0.053.
+The fraction of MC repetitions in which the OLS estimators are significant when we exclude controls is 0.642.
+The fraction of MC repetitions in which the OLS estimators are significant when we include controls is 0.157.
 
 Summary: From the figures, we know that including too many irrelevant covariates will increase the SE and render OLS estimator insignificant. And especially MC simulation exacerbates inaccuracies in OLS estimates. 
 
@@ -251,6 +257,7 @@ data.frame.iv <- dgp_2(100, 40, 2, 10)
 
 Part b 
 1. Perform R=1000 independent MC repetitions, each time generating a new set of data using the DGP in (a) with n=100 and ℓ=40.
+
 2. At each MC repetition, compute the 2SLS estimators for the IV regression of Yi against Di using the following IVs:
     Only the first IV Zi,1.
     The first 5 IVs Zi,1,…,Zi,5.
@@ -261,9 +268,13 @@ Part b
     The first 30 IVs.
     The first 35 IVs.
     All 40 IVs.
+    
 3. Save estimates for all the 9 2SLS estimators described above obtained at each MC repetition.
+
 4. Compute the simulated bias
+
 5. Plot the absolute value of the simulated bias of the 2SLS estimator (on the vertical axis) against the number of IVs used (on the horizontal axis).
+
 6. Discuss the effect of the number of IVs on the simulated bias of the 2SLS. Does using many IVs result in substantial bias?
 
 Test 
@@ -419,7 +430,14 @@ plot_data <- cbind(c(1,5,10,15,20,25,30,35,40), simulated_bias)
 plot_data <- as.data.frame((plot_data))
 
 # plot simulated bias vs number of IVs
-plot(as.factor(plot_data$V1),plot_data$V2,xlab="Number of IVs", ylab="Simulated Bias", main="Simulated Bias of 2SLS estimators vs Number of IVs")
+plot(as.factor(plot_data$V1),plot_data$V2, xlab="Number of IVs", ylab="Simulated Bias",main="Simulated Bias of 2SLS estimators vs Number of IVs")
+
+library(tidyverse)
+ggplot(data=plot_data, aes(x=V1, y=V2)) +
+  geom_point() +
+  geom_line()+
+  xlab("Number of IVs")+
+  ylab("Simulated Bias")
 ```
 
 

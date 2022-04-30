@@ -1,0 +1,138 @@
+---
+title: "Lab 02: BIC illustration"
+output: html_document
+---
+
+```{r}
+library(foreach)
+library(doParallel,quietly=T)
+library(doRNG,quietly=T)
+registerDoParallel(detectCores(logical=F))
+```
+
+
+# DGP
+
+Consider a polynomial regression model:
+
+\begin{align}
+Y_i & = \beta_0+\beta_1 X_{i}+\beta_2 X_i^2+\ldots+\beta_{p_0} X_i^{p_0}+U_i,\\
+U_i &\sim N(0,1),\\
+X_i &\sim N(0,1).
+\end{align}
+
+A custom function to generate the data:
+```{r}
+DGP<-function(n,p0){
+  X<-rnorm(n)
+  U<-rnorm(n)
+  Y<-U
+  for (j in 1:p0){
+    Y<-Y+X^j
+  }
+  return(list(y=Y,x=X))
+}
+```
+
+```{r}
+n=1000
+p0=4
+MyData<-DGP(n,p0)
+```
+
+# Polynomial regression
+
+We can obtain the OLS estimator for the polynomial regression using the function `poly(x,p,raw=TRUE)`, where:
+
+- `x` is the data vector used to construct the polynomial terms.
+- `p` is the degree of the polynomial.
+- `raw=TRUE` instructs R to **not** use orthogonal polynomial terms.
+
+```{r}
+summary(lm(MyData$y ~ poly(MyData$x,p0,raw=TRUE)))
+```
+
+# BIC
+
+We use the following expression for the BIC:
+
+\begin{equation}
+BIC = \sum_{i=1}^n\hat U_i^2  +  \hat\sigma^2 \cdot p\log(n),
+\end{equation}
+where 
+\begin{align}
+\hat\sigma^2 &= \frac{1}{n}\sum_{i=1}^n\hat U_i^2,\\
+\hat U_i &=Y_i - \hat \beta_0-\hat\beta_1 X_{i}-\hat\beta_2 X_i^2-\ldots-\hat\beta_p X_i^p,
+\end{align}
+ and $\hat\beta_j$, $j=0,1,\ldots,p$, denote the OLS estimators.
+ 
+**Note**:
+
+- $p$ can be different from the true degree $p_0$.
+- We adjust the penalty term by the estimated variance of the errors to make it invariant to the scale of the errors.
+  - The adjustment may matter in finite samples.
+- Our definition of BIC is slightly different from the `BIC()` function in R.
+- The  R `BIC()` function is log-likelihood based.
+- The selection properties of our definition of BIC and the `BIC()` function in R are asymptotically the same.
+
+Let's define our BIC function:
+
+```{r}
+MyBIC<-function(MyData,p){
+  reg<-lm(MyData$y ~ poly(MyData$x,p,raw=TRUE))
+  n<-length(MyData$y)
+  sigma2<-sum(reg$residuals^2)/n
+  myBIC<- n*sigma2 + sigma2*p*log(n)
+  return(myBIC)
+}
+```
+
+Let's define a custom function that computes all the polynomial regressions up to the order `max_p`, and selects the value of $p$ that minimizes the BIC (denoted `p_hat`):
+
+```{r}
+MySelect<-function(MyData,max_p){
+  Powers<-seq(from=1,to=max_p,by=1)
+  myBICs<-foreach(j=Powers) %do% MyBIC(MyData,j)
+  p_hat<-which.min(myBICs)
+  return(p_hat)
+  
+}
+```
+
+```{r}
+MySelect(MyData,max_p=10)
+```
+
+# MC simulations
+
+Let's check how likely BIC to select the right model using MC simulations.
+
+- `n` is the sample size.
+- `p0` is the true degree.
+- `max_p` is the largest degree to try.
+- `R` is the number of MC repetitions.
+- `stateRNG` is to set the seed for reproducibility.
+
+```{r}
+MC_BIC<-function(n,p0,max_p,R,stateRNG){
+    Success<-foreach(r=1:R, .options.RNG=stateRNG, .combine='rbind') %dorng% {
+    MyData<-DGP(n,p0=p0)
+    p_hat<-MySelect(MyData,max_p=max_p)
+    (p_hat==p0)
+  }
+  cat("With n=",n, "the probability of BIC selecting the true model is",mean(Success))
+}
+```
+
+
+```{r}
+MC_BIC(n=30,p0=4,max_p=10,R=10^3,stateRNG=6083)
+```
+
+```{r}
+MC_BIC(n=100,p0=4,max_p=10,R=10^3,stateRNG=6083)
+```
+
+```{r}
+MC_BIC(n=1000,p0=4,max_p=10,R=10^3,stateRNG=6083)
+```

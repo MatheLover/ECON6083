@@ -1,0 +1,115 @@
+---
+title: "Post-Lasso and double Lasso: growth rate example"
+output: html_document
+---
+
+
+```{r}
+library(hdm)
+```
+
+### The model
+$$\begin{equation}
+(\Delta\log GDP)_i=\alpha \cdot GDP^0_i+U_i.
+\end{equation}$$
+
+* $(\Delta\log GDP)_i$ is the change in the log of GDP per capita of country $i$ between periods $t_1$ and $t_2$, $t_2>t_1$.
+* $GDP^0_i$ is the GDP per capita of country $i$ in period $t$
+* **The Catching Up Hypothesis**: $\alpha <0$. The rate of growth slows down, less developed countries catch up with more developed. 
+```{r}
+data("GrowthData")
+?GrowthData
+names(GrowthData)
+```
+
+#### The hypothesis fails:
+```{r}
+summary(lm(Outcome~gdpsh465,data=GrowthData))
+```
+
+### An alternative model:
+
+* Institutions and technology matter. 
+* The catching up hypothesis works with similar countries only.
+* Need to control for the characteristics.
+
+$$\begin{equation}
+(\Delta\log GDP)_i=\alpha \cdot GDP^0_i+X_i'\beta+U_i.
+\end{equation}$$
+
+
+* $X_i$ is the vector of controls describing the economic conditions of country $i$ in period $t_1$.
+
+There are a lot of potential controls:
+```{r}
+dim(GrowthData)
+```
+
+Let's set up estimation
+```{r}
+names(GrowthData)
+```
+```{r}
+y=as.vector(GrowthData$Outcome)
+D=as.vector(GrowthData$gdpsh465)
+Controls=as.matrix(GrowthData)[,-c(1,2,3)]
+```
+
+* `-c(1,2,3)` instructs to exclude the first 3 variables in `GrowthData`: 
+  * `Outcome`   
+  * `intercept`
+  * `gdpsh465`  
+
+OLS regression with all controls:
+```{r}
+Full=lm(y~D+Controls)
+head(coef(summary(Full)),2)
+```
+
+* The estimate is negative but the std.err is too large - too many controls.
+
+### Post-Lasso with Double Lasso
+
+```{r}
+?rlassoEffect
+```
+
+
+```{r}
+Effect<-rlassoEffect(Controls,y,D,method="double selection")
+summary(Effect)
+```
+
+* A negative significant estimate!
+
+Included controls:
+```{r}
+sum(Effect$selection.index==TRUE)
+Effect$selection.index[Effect$selection.index==TRUE]
+```
+```{r}
+sum(Effect$selection.index==TRUE)
+Effect$selection.index[Effect$selection.index==TRUE]
+```
+
+#### Double Lasso selected 7 controls:
+
+* `bmp1l`: Log of the black market premium.
+* `freetar`: Measure of tariff restrictions.
+* `hm65`: Male gross enrollment ratio for higher education in 1965.
+* `sf65`: Female gross enrollment ratio for secondary education in 1965.
+* `lifee065`: Life expectancy at 0 in 1965.
+* `humanf65`: Average schooling years in the female population over age 25 in 1965.
+* `pop6565`: Population Proportion over 65 in 1965.
+
+
+### Using the partialling out approach
+```{r}
+Effect_PO<-rlassoEffect(Controls,y,D,method="partialling out")
+summary(Effect_PO)
+```
+```{r}
+sum(Effect_PO$selection.index==TRUE)
+Effect_PO$selection.index[Effect_PO$selection.index==TRUE]
+```
+

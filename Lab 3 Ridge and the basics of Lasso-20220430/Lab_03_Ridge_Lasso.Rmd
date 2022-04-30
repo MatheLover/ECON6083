@@ -1,0 +1,444 @@
+---
+title: 'Lab 03: Ridge Regression & the basics of Lasso'
+output:
+  html_document:
+    df_print: paged
+---
+
+Required packages:
+
+* `ISLR`: for data
+* `glmnet`: for Ridge.
+* `foreach`: for Loops.
+* `kableExtra`: for tables.
+
+---
+
+Clear the workspace
+```{r}
+rm(list=ls())
+```
+
+
+# Load the data
+
+```{r}
+library(ISLR)
+?Hitters
+names(Hitters)
+```
+
+Drop observations with missing values:
+```{r}
+Hitters<-na.omit(Hitters)
+```
+
+We want to predict the Salary using the performance stats:
+```{r}
+x<-model.matrix(Salary~.,Hitters)[,-1]
+y<-Hitters$Salary
+```
+
+* `model.matrix(Salary~.,Hitters)` creates a model to explain Salary in data Hitters using all the variables. 
+* It also transforms **qualitative variables into dummies**. 
+* The option `[,-1]` drops the intercept (otherwise a column of ones is added to `x`). 
+
+```{r}
+dim(x)
+```
+
+There are:
+
+-  `n=263` observations.
+- 19 regressors.
+
+---
+
+# Ridge regression
+
+```{r}
+suppressMessages(library(glmnet))
+```
+
+* The function `glmnet(x,y,alpha=0,lambda=10)` runs the ridge regression with a regularization parameter $\lambda=10$. 
+* `alpha=0` instructs `glmnet()` to run Ridge.
+* With `alpha=1`, it would run Lasso instead. 
+* By default, the regressors are standardized: each regressor $j$ has a zero average and a unit sample variance: $\sum_{i=1}^n X_{i,j}=0$ and $n^{-1}\sum_{i=1}^n X^2_{i,j}=1$.
+  * If $Z_{i,j}$ is the original variable, $\bar Z_j=n^{-1}\sum_{i=1}^n Z_{i,j}$, $\hat\sigma^2_j=n^{-1}\sum_{i=1}^n (Z_{i,j}-\bar Z_j)^2$, then
+  \[
+  X_{i,j}=\frac{Z_{i,j}-\bar Z_j}{\hat\sigma_j}
+  \]
+* To prevent automatic standardization, use the option `standardize = FALSE`.
+* We can access the coefficients using `Ridge10$beta` or `coef(Ridge10)`.
+  * `coef()` also includes the intercept.
+
+```{r}
+Ridge10<-glmnet(x,y,alpha=0,lambda=10)
+cbind(Ridge10$beta,coef(Ridge10)[-1])
+```
+* The results using `$beta` or `coef()` are the same.
+
+##### Create a grid of values for $\lambda$
+
+```{r}
+grid=seq(from=0.01,to=20000,length=100)
+grid
+```
+
+
+### Let's run Ridge!
+
+```{r}
+ridge.mod<-glmnet(x,y,alpha=0,lambda=grid)
+```
+
+* R creates an object `ridge.mod` that contains the results.
+* Let's see what's inside:
+```{r}
+names(ridge.mod)
+```
+
+* `beta`: estimated coefficients.
+  * To access use `ridge.mod$beta`.
+  * Also `coef(ridge.mod)`.
+* `df`: degrees of freedom (the number of regressors)
+* `nulldev`: the sample variation of `y`: $\sum_{i=1}^n(Y_i-\bar Y)^2$.
+* `dev.ratio`: 1-SSR/nulldev
+* To get SSR: `deviance(ridge.mod)`.
+
+There is one set of coefficients for each value of `lambda`:
+```{r}
+dim(coef(ridge.mod))
+```
+We have 20 coefficients (including the intercept) corresponding to the 100 values of $\lambda$. 
+
+##### Compare coefficients for smaller and larger values of $\lambda$
+
+```{r}
+ridge.mod$lambda
+```
+
+
+```{r}
+
+library(kableExtra)
+
+lambda_ind_small=99
+lambda_ind_large=2
+
+cbind(ridge.mod$beta[,lambda_ind_small],ridge.mod$beta[,lambda_ind_large]) %>%
+  kable(digits=3,
+        caption="Estimated Ridge coefficients for small and large penalty $\\lambda$",
+        col.names=c(paste0("$\\lambda=$ ",round(ridge.mod$lambda[lambda_ind_small],digits=2)),paste0("$\\lambda=$ ",round(ridge.mod$lambda[lambda_ind_large],digits=2)))
+        ) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+* Larger values of $\lambda$ strongly tend to correspond to smaller in absolute value coefficients (shrinkage)!
+
+# Out-of-sample predictions
+
+Next, we'll consider out-of-sample prediction of the salary.
+
+### Data spliting
+
+We split our data set into:
+
+- Training/Estimation sample.
+- Test/Validation sample.
+
+We use the `sample()` function which randomly draws from a list:
+
+```{r}
+sample(seq(1:10),5)
+```
+
+Let's split our data into two equal size sub-samples:
+
+The total number of observations:
+```{r}
+nrow(x)
+```
+
+
+
+```{r}
+set.seed(1,sample.kind="Rejection")
+train<-sample(1:nrow(x),nrow(x)/2)
+test<-(-train)
+y.test<-y[test]
+```
+
+- The vector `train` includes observation numbers put into the training sample.
+- `x` for the training sample is `x[train,]`.
+- `x` for the test sample is `x[-train,]`.
+
+
+
+### Estimate the model on the training data
+
+```{r}
+ridge.mod<-glmnet(x[train,],y[train],alpha=0,lambda=grid)
+```
+
+### Construct out-of-sample predictions
+
+- use `predict(model,...)`.
+- use `newx=x[test,]` to supply the out of sample values of the predictors.
+
+```{r}
+ridge.pred<-predict(ridge.mod,newx=x[test,],exact=T,x=x[train,],y=y[train])
+```
+
+- prediction for each observation (rows)
+
+```{r}
+nrow(ridge.pred)
+```
+
+
+```{r}
+head(ridge.pred[,1],10)
+```
+
+- different predictions for different values of `lambda` (columns)
+
+```{r}
+ncol(ridge.pred)
+```
+
+```{r}
+head(ridge.pred[1,],10)
+```
+
+### Out-of-sample fit (MSE) for each `lambda` value 
+
+```{r}
+library(foreach)
+Fit<-foreach(j=1:100, .combine='cbind') %do% {
+  mean((ridge.pred[,j]-y.test)^2)
+}
+```
+
+
+```{r}
+plot(grid,Fit,type="l", xlab="lambda", ylab="MSE")
+```
+
+One can see that there is a best `lambda` value! Let's find it:
+
+```{r}
+best_ind_lambda<-which.min(Fit)
+sprintf("The index of the best lambda is %g", best_ind_lambda)
+
+best_lambda<-grid[best_ind_lambda]
+sprintf("The best lambda is %g", best_lambda) 
+
+Ridge_best_Fit<-Fit[best_ind_lambda]
+
+sprintf("The corresponding best fit (MSE) is %g",Ridge_best_Fit)
+```
+
+
+* This is the first best choice of `lambda` for Ridge, but it would be infeasible in practice: the true outcome out of sample is unknown!
+
+
+### Let's compare with OLS prediction
+
+- We can construct OLS by setting `lambda=0`
+
+```{r}
+lm.mod<-glmnet(x[train,],y[train],alpha=0,lambda=0,thresh = 1e-20)
+```
+
+Let's compare the coefficients:
+```{r}
+round(cbind(coef(lm.mod),coef(lm(y[train]~x[train,]))),digits=4)
+```
+
+OLS out of sample fit:
+
+```{r}
+lm.pred<-predict(lm.mod,newx=x[test,],exact=T)
+lm.Fit<- mean((lm.pred-y.test)^2)
+sprintf("The OLS fit is        %g",lm.Fit)
+sprintf("The Ridge best fit is %g",Ridge_best_Fit)
+cat("Ridge outperforms OLS by ",(lm.Fit/Fit[best_ind_lambda]-1)*100, "%")
+```
+
+
+
+# Conclusions
+
+- Ridge can be a superior (to OLS) forecasting tool.
+- The choice of penalty is important.
+- Ridge does not select regressors! All regressors have non-zero coefficients:
+
+```{r}
+coef(ridge.mod)[,best_ind_lambda]
+```
+
+
+# Cross validation (CV)
+
+- In practice we do not see out of sample outcomes.
+- We cannot do what we did above: selected the best `lambda` by comparing with the true out of sample values.
+- CV creates "pseudo" out of sample outcomes by excluding some observations when fitting the model.
+  - Split data randomly into several "folds".
+  - Pick `lambda`.
+  - Estimate by excluding one of the folds.
+  - Construct predictions for the excluded fold.
+  - Evaluate the fit on the excluded fold.
+  - Repeat by excluding different folds.
+  - Average the fit across the folds.
+  - Repeat for all candidate values of `lambda`.
+  - Choose `lambda` that results in the smallest average out of sample fit.
+- For `glmnet()`, CV is implemented as `cv.glmnet()`.
+- `nfolds=` sets the number of folds.
+
+```{r}
+set.seed(10,sample.kind="Rejection")
+cv.ridge<-cv.glmnet(x[train,],y[train],alpha=0,nfolds=10)
+plot(cv.ridge)
+```
+
+- The curves are the mean cross validated error plus/minus one standard error of CV
+- CV-best value of $\lambda$
+
+```{r}
+cv.ridge$lambda.min
+```
+
+##### The one-standard-error rule:
+
+- A larger penalty `lambda` that results in the measure of fit within one standard error of the "best" fit.
+- Slightly more regularization.
+- Approximately the same fit (within 1 CV standard error)
+
+```{r}
+cv.ridge$lambda.1se
+```
+
+
+
+### Out-of-sample prediction with cross validated penalty
+
+```{r}
+ridge.pred=predict(cv.ridge,s=cv.ridge$lambda.min,newx=x[test,],exact=T,x=x[train,],y=y[train])
+
+Ridge_CV_fit<-mean((ridge.pred-y.test)^2)
+sprintf("The Ridge fit using the best CV penalty is %g",Ridge_CV_fit)
+cat("With the best CV penalty, Ridge outperforms OLS by",(lm.Fit/Ridge_CV_fit-1)*100,"%")
+```
+
+
+##### To see the corresponding Ridge coefficients
+```{r}
+coef(cv.ridge,s=cv.ridge$lambda.min)
+```
+
+**NO Selection**!!!: all are non-zeros.
+
+* CV choice is feasible in practice.
+* CV produced fit is slightly worse than the infeasible first best, but close.
+
+
+
+# Lasso
+
+* The function `glmnet(x,y,alpha=1)` runs the ridge regression with a regularization parameter. 
+* `alpha=1` instructs `glmnet()` to run Lasso.
+* By default, the regressors are standardized.
+
+### Let's run Lasso!
+
+- specify `alpha=1` to instruct `glmnet()` to run lasso.
+
+```{r}
+lasso.mod=glmnet(x,y,alpha=1)
+names(lasso.mod)
+```
+
+* We let `glmnet()` to chose the values of `lambda`.
+* The values considered:
+
+```{r}
+length(lasso.mod$lambda)
+lasso.mod$lambda
+```
+
+
+### Let's compare the coefficients for different `lambda`'s:
+
+
+
+```{r}
+
+lambda_ind_small=60
+lambda_ind_large=10
+
+cbind(lasso.mod$beta[,lambda_ind_small],lasso.mod$beta[,lambda_ind_large]) %>%
+  kable(digits=2,
+        caption="Estimated Lasso coefficients for small and large penalty $\\lambda$",
+        col.names=c(paste0("$\\lambda=$ ",round(lasso.mod$lambda[lambda_ind_small],digits=2)),paste0("$\\lambda=$ ",round(lasso.mod$lambda[lambda_ind_large],digits=2)))
+        ) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+* For a larger `lambda`:
+  * The coefficients are smaller.
+  * More coefficients are shrunk to zero. 
+  
+# Out of sample with Lasso
+
+### Cross validation
+
+```{r}
+set.seed(10,sample.kind="Rejection")
+cv.lasso=cv.glmnet(x[train,],y[train],alpha=1,nfolds=10)
+plot(cv.lasso)
+```
+
+Best `lambda`:
+```{r}
+cv.lasso$lambda.min
+```
+
+### Out of sample with the CV Lasso penalty
+
+```{r}
+lasso.pred<-predict(cv.lasso,s=cv.lasso$lambda.min,newx=x[test,],exact=T,x=x[train,],y=y[train])
+Lasso_CV_fit<-mean((lasso.pred-y.test)^2)
+sprintf("The Lasso fit using the cross validated penalty is %g",Lasso_CV_fit)
+```
+
+
+# Out of sample comparison with Ridge and OLS:
+
+```{r}
+TAB<-cbind((lm.Fit/Lasso_CV_fit-1)*100, (lm.Fit/Ridge_CV_fit-1)*100)
+
+TAB %>%
+  kable(digits=2,
+        col.names =c("Lasso","Ridge"),
+        caption ="Percentage Improvement (%) in the out-of-sample fit relatively to OLS "    
+        ) %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+coef(cv.lasso,s=cv.lasso$lambda.min)
+```
+
+
+
+# Conclusion
+
+* Ridge uses all available variables.
+* Ridge can be superior to OLS and Lasso for forecasting/out of sample prediction.
+* Ridge does not have the selection properties.
+* Lasso selects right-hand side variables.
+
+**Question**: How to select the penalty when the goal is not forecasting but estimation of structural/causal effects?
+
+---
+
