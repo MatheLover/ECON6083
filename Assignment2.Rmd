@@ -105,4 +105,42 @@ Post.Logit <- glm(arrest~fin+age+wexp,data=Rossi,family=binomial(link="logit"))
 coef(summary(Post.Logit))
 summary(margins(Post.Logit))
 ```
+
+
+Question 2: MC simulations for different choices of the Lasso penalty parameter λ 
+Part a.
+```{r}
+dgp <- function(β_one, σ){
+  # Parameter
+  # 1. β_one 
+  # 2. σ 
+  
+  # Generate β0
+  matrix_β_zero <- matrix(1, 30, 1)
+  
+  # Generate X1,1 .... X30,1
+  matrix_x <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
+  
+  # Generate β_one *  matrix_x
+  β_one_matrix_x <-  β_one*matrix_x
+  
+  # Generate Ui 
+  matrix_u <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
+  
+  # Generate σ * U
+  σ_matrix_u <- σ * matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
+  
+  # Generate Yi
+  y <- matrix_β_zero + β_one_matrix_x + σ_matrix_u
+}
+```
+
+Part b
+```{r}
+dgp_mc <- function(){
+  # parameter
+  # 1. n -- number of mc repetitions 
+}
+```
+
  
