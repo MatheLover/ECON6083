@@ -19,6 +19,10 @@ Clear the workspace
 rm(list=ls())
 ```
 
+```{r}
+install.packages()
+```
+
 
 # Load the data
 

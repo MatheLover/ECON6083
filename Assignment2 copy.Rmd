@@ -22,7 +22,6 @@ library(carData)
 library(glmnetUtils)
 library(margins)
 library(glmnetUtils)
-library(tidyverse)
 ```
 
 ## Dataset Info
@@ -111,41 +110,37 @@ summary(margins(Post.Logit))
 Question 2: MC simulations for different choices of the Lasso penalty parameter λ 
 Part a.
 ```{r}
-dgp <- function(beta_one, sigma){
+dgp <- function(β_one, σ){
   # Parameter
-  # 1. beta_one 
-  # 2. sigma 
+  # 1. β_one 
+  # 2. σ 
   
-  # Generate beta0
-  matrix_beta_zero <- matrix(1, 30, 1)
+  # Generate β0
+  matrix_β_zero <- matrix(1, 30, 1)
   
   # Generate X1,1 .... X30,1
   matrix_x <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
-  # Generate one irrelevant X variable 
-  matrix_x_ir <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
-  
-  # Generate beta_one *  matrix_x
-  beta_one_matrix_x <-  beta_one*matrix_x
+  # Generate β_one *  matrix_x
+  β_one_matrix_x <-  β_one*matrix_x
   
   # Generate Ui 
   matrix_u <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
-  # Generate sigma * U
-  sigma_matrix_u <- sigma * matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
+  # Generate σ * U
+  σ_matrix_u <- σ * matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
   # Generate Yi
-  y <- matrix_beta_zero + beta_one_matrix_x + sigma_matrix_u
+  y <- matrix_β_zero + β_one_matrix_x + σ_matrix_u
   
   # Rename matrix columns 
   colnames(y) <- "yi"
-  colnames(matrix_beta_zero) <- "beta_zero"
-  colnames(beta_one_matrix_x) <- "beta_one_x"
-  colnames(sigma_matrix_u) <- "sigma_u"
-  colnames(matrix_x_ir) <- "Irrelevant_x"
+  colnames(matrix_β_zero) <- "β_zero"
+  colnames(β_one_matrix_x) <- "β_one_x"
+  colnames(σ_matrix_u) <- "σ_u"
   
   # cbind matrixes 
-  dataset <- cbind(y,matrix_beta_zero,beta_one_matrix_x,sigma_matrix_u,matrix_x_ir)
+  dataset <- cbind(y,matrix_β_zero,β_one_matrix_x,σ_matrix_u)
   
    # Convert matrix to dataframe 
   dataset.data.frame <- as.data.frame(dataset)
@@ -155,74 +150,26 @@ dgp <- function(beta_one, sigma){
 }
 ```
 
-Test 
-```{r} 
-dataset_test <- dgp(10,1.5)
-lambda_1 <- 2 * 1.5 * ((2 * log(1 * 300) / 30)**(0.5))
-lambda_2 <- 2 * ((2 * log(1 * 300) / 30) ** (0.5))
-x1 <- as.matrix(dataset_test$beta_one_x)
-x_ir <- as.matrix(dataset_test$Irrelevant_x)
-x <- cbind(x1, x_ir)
-y <- as.matrix(dataset_test$yi)
-lasso <- cv.glmnet(x,y,alpha = 1)
-lambda_3 <- lasso$lambda.1se
-lambda_4 <- lasso$lambda.min
-```
-
 Part b
 ```{r}
-dgp_mc <- function(n,beta_one,sigma){
+dgp_mc <- function(n,β_one,σ){
   # parameter
   # 1. n -- number of mc repetitions 
-  # 2. beta_one
-  # 3. sigma
-  dataset_test <- data.frame(matrix(ncol=))
+  # 2. β_one
+  # 3. σ
+  
   for(i in 1:n){
     set.seed(i)
     
     # Generate dataset 
-    dataset_b <- dgp(beta_one,sigma)
-
-    lambda_1 <- 2 * sigma * ((2 * log(n * 300) / 30)**(0.5))
-    lambda_2 <- 2 * ((2 * log(n * 300) / 30)**(0.5))
-    cv_model <- cv.glmnet(beta_one, yi, data=dataset_b, alpha=1)
-    lambda_3 <-cv_model$lambda.1se
-    lambda_4 <- cv_model$lambda.min
-
-    # lambda 1 and Lasso including the first regressor Xi,1,
-    lasso1 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_1)
-
-    # lambda 1 and Lasso inclduing at least one of the irrelevant regressors
-    lasso2 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_1)
-
-    # lambda 2
-    lasso3 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_2)
-    lasso4 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_2)
-
-    # lambda 3
-    lasso5 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_3)
-    lasso6 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_3)
-
-    # lambda 4
-    lasso7 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_4)
-    lasso8 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_4)
-  
+    dataset_b <- dgp(β_one,σ)
     
-     
+    # Generate lamda
+    lambda_1 <- 2 * σ * ((2 * log(n * 300) / 30)**(0.5))
+    lambda_2 <- 2 * ((2 * log(n * 300) / 30)**(0.5))
+    
   }
-  
-  
-
-  
- 
 }
 ```
-
-```{r}
-
-```
-
-
-
 
  
