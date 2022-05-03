@@ -109,6 +109,7 @@ summary(margins(Post.Logit))
 
 
 Question 2: MC simulations for different choices of the Lasso penalty parameter λ 
+Note: if you want to use one regressor, consider this expression : lasso <- cv.glmnet(cbind(0, x1),y,alpha = 1)
 Part a.
 ```{r}
 dgp <- function(beta_one, sigma){
@@ -122,8 +123,8 @@ dgp <- function(beta_one, sigma){
   # Generate X1,1 .... X30,1
   matrix_x <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
-  # Generate one irrelevant X variable 
-  matrix_x_ir <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
+  # Generate 300 irrelevant X variables 
+  matrix_x_ir <- matrix(rnorm(30*300, mean=0,sd=1), 30, 300)
   
   # Generate beta_one *  matrix_x
   beta_one_matrix_x <-  beta_one*matrix_x
@@ -142,7 +143,7 @@ dgp <- function(beta_one, sigma){
   colnames(matrix_beta_zero) <- "beta_zero"
   colnames(beta_one_matrix_x) <- "beta_one_x"
   colnames(sigma_matrix_u) <- "sigma_u"
-  colnames(matrix_x_ir) <- "Irrelevant_x"
+  # colnames(matrix_x_ir) <- "Irrelevant_x"
   
   # cbind matrixes 
   dataset <- cbind(y,matrix_beta_zero,beta_one_matrix_x,sigma_matrix_u,matrix_x_ir)
@@ -157,16 +158,41 @@ dgp <- function(beta_one, sigma){
 
 Test 
 ```{r} 
+# Test function dgp
 dataset_test <- dgp(10,1.5)
+
+# Test lambda 1 and 2 expression
 lambda_1 <- 2 * 1.5 * ((2 * log(1 * 300) / 30)**(0.5))
 lambda_2 <- 2 * ((2 * log(1 * 300) / 30) ** (0.5))
-x1 <- as.matrix(dataset_test$beta_one_x)
-x_ir <- as.matrix(dataset_test$Irrelevant_x)
-x <- cbind(x1, x_ir)
-y <- as.matrix(dataset_test$yi)
-lasso <- cv.glmnet(x,y,alpha = 1)
-lambda_3 <- lasso$lambda.1se
-lambda_4 <- lasso$lambda.min
+
+# lambda 3 and 4 -- # Find amount of penalty lambda by cross validation and search for lambda that gives min MSE 
+PredictorVariables <- paste("V", 5:304, sep="") ## particularly construct 300 control variables 
+Formula <- formula(paste("yi ~ beta_one_x +", 
+     paste(PredictorVariables, collapse=" + ")))
+Formula
+X <- model.matrix(Formula, data=dataset_test)[,-1]  ## Model equation 
+Y <- dataset_test$yi # Model equation 
+cv_lambda_lasso <- cv.glmnet(X, Y, alpha=1) 
+plot(cv_lambda_lasso)
+cv_lambda_lasso # check MSE
+# cv_lambda_lasso$glmnet.fit
+lambda_3 <- cv_lambda_lasso$lambda.1se
+lambda_4 <- cv_lambda_lasso$lambda.min
+
+# 4 models 
+# model 1
+lasso1.model <- glmnet(X,Y,alpha=1, lambda=lambda_1)
+lasso1.model $beta
+
+lasso2.model <- glmnet(X,Y,alpha=1, lambda=lambda_2)
+lasso2.model $beta
+
+lasso3.model <- glmnet(X,Y,alpha=1, lambda=lambda_3)
+lasso3.model $beta
+
+lasso4.model <- glmnet(X,Y,alpha=1, lambda=lambda_4)
+lasso4.model $beta
+
 ```
 
 Part b
