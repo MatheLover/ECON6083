@@ -584,9 +584,24 @@ Answer: Generally speaking, the higher the sigma, the higher the chance of inclu
 4. Which is the preferred method out of the 4 considered based on your simulation results?
 
 Answer: Method 1. It definitely selects the relevant regressor Xi,1 and provide very reliable control against inclusions of irrelevant regressors since there is zero chance for LASSO to include irrelevant regressors. However, method 2, 3 and 4 are not so reliable as they may include irrelevant regressors in the LASSO.
-```{r}
 
-```
+
+Part F
+
+1. Discuss how the results change relatively to when β1=10.
+
+Answer: When beta one becomes 1, the chance of selecting relevant regressor decreases significantly.In most cases, the chance of incorporating irrelevant regressors decreases slightly.
+
+
+2. Explain the differences between the results for different values of σ.
+
+Answer: When sigma becomes larger, the chance of including the first(relevant) regressor decreases noticeably. 
+
+
+3. Does any method work reliably when the coefficient on the true regression is small?
+
+Answer: Generally speaking, no methods are reliable if the coefficient is too small because the chance of including relevant regressor is approximately 0.  
+
 
 
  
