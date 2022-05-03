@@ -191,7 +191,7 @@ lambda_4 <- cv_lambda_lasso$lambda.min
 
 # Create a dataframe to store frequency of 8 scenarios(4 lambdas and 2 regressor requirements) satisfying 
 #    -- 1. Lasso including the first regressor Xi,1 
-#    ---2. Lasso inclduing at least one of the irrelevant regressors
+#    ---2. Lasso including at least one of the irrelevant regressors
 
 # Test 8 scenarios 
 # Initialize 8 counters 
@@ -228,7 +228,7 @@ if (lasso1.model$beta[1, 1] != 0) {
 
 
 if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
-  # Scenario 2 -- lambda 1 and Lasso inclduing at least one of the irrelevant regressors
+  # Scenario 2 -- lambda 1 and Lasso including at least one of the irrelevant regressors
   counter_2 <- 1
 }
 
@@ -290,7 +290,7 @@ dgp_mc <- function(beta_one,sigma){
   }
   
   if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
-    # Scenario 2 -- lambda 1 and Lasso inclduing at least one of the irrelevant regressors
+    # Scenario 2 -- lambda 1 and Lasso including at least one of the irrelevant regressors
     counter_2 <- 1
   }
   
@@ -304,7 +304,7 @@ dgp_mc <- function(beta_one,sigma){
   }
   
   if (sum(lasso2.model$beta[2:nrow(lasso2.model$beta), 1] != 0) > 1) {
-    # Scenario 4 -- lambda 2 and Lasso inclduing at least one of the irrelevant regressors
+    # Scenario 4 -- lambda 2 and Lasso including at least one of the irrelevant regressors
     counter_4 <- 1
   }
   
@@ -318,7 +318,7 @@ dgp_mc <- function(beta_one,sigma){
   
   
   if (sum(lasso3.model$beta[2:nrow(lasso3.model$beta), 1] != 0) > 1) {
-    # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
+    # Scenario 6 -- lambda 3 and Lasso including at least one of the irrelevant regressors
     counter_6 <-  1
   }
   
@@ -332,7 +332,7 @@ dgp_mc <- function(beta_one,sigma){
   }
   
   if (sum(lasso4.model$beta[2:nrow(lasso4.model$beta), 1] != 0) > 1) {
-    # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
+    # Scenario 6 -- lambda 3 and Lasso including at least one of the irrelevant regressors
     counter_8 <- 1
   }
   
@@ -477,13 +477,13 @@ write.csv(sim_6_result_df,"Assignment2_Q2_sim6.csv")
 Part d. Use kableExtra to present results 
 ```{r}
 rownames(sim_1_result_df) <- c("Lasso including the first regressor (lambda1)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
                                "Lasso including the first regressor (lambda2)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
                                "Lasso including the first regressor (lambda3)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
                                "Lasso including the first regressor (lambda4)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
                                )
 sim_1_result_df %>%
   kbl(caption = "The probabilities of Lasso when β1=10 and σ=1.5 ",digits=4,col.names = "Probability") %>%
@@ -492,13 +492,13 @@ sim_1_result_df %>%
 
 ```{r}
 rownames(sim_2_result_df) <- c("Lasso including the first regressor (lambda1)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
                                "Lasso including the first regressor (lambda2)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
                                "Lasso including the first regressor (lambda3)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
                                "Lasso including the first regressor (lambda4)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
                                )
 sim_2_result_df %>%
   kbl(caption = "The probabilities of Lasso when β1=10 and σ=2 ",digits=4,col.names = "Probability") %>%
@@ -507,13 +507,13 @@ sim_2_result_df %>%
 
 ```{r}
 rownames(sim_3_result_df) <- c("Lasso including the first regressor (lambda1)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
                                "Lasso including the first regressor (lambda2)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
                                "Lasso including the first regressor (lambda3)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
                                "Lasso including the first regressor (lambda4)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
                                )
 sim_3_result_df %>%
   kbl(caption = "The probabilities of Lasso when β1=10 and σ=4 ",digits=4,col.names = "Probability") %>%
@@ -522,13 +522,13 @@ sim_3_result_df %>%
 
 ```{r}
 rownames(sim_4_result_df) <- c("Lasso including the first regressor (lambda1)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
                                "Lasso including the first regressor (lambda2)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
                                "Lasso including the first regressor (lambda3)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
                                "Lasso including the first regressor (lambda4)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
                                )
 sim_4_result_df %>%
   kbl(caption = "The probabilities of Lasso when β1=1 and σ=1.5 ",digits=4,col.names = "Probability") %>%
@@ -537,13 +537,13 @@ sim_4_result_df %>%
 
 ```{r}
 rownames(sim_5_result_df) <- c("Lasso including the first regressor (lambda1)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
                                "Lasso including the first regressor (lambda2)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
                                "Lasso including the first regressor (lambda3)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
                                "Lasso including the first regressor (lambda4)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
                                )
 sim_5_result_df %>%
   kbl(caption = "The probabilities of Lasso when β1=1 and σ=2 ",digits=4,col.names = "Probability") %>%
@@ -552,13 +552,13 @@ sim_5_result_df %>%
 
 ```{r}
 rownames(sim_6_result_df) <- c("Lasso including the first regressor (lambda1)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
                                "Lasso including the first regressor (lambda2)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
                                "Lasso including the first regressor (lambda3)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
                                "Lasso including the first regressor (lambda4)",
-                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
                                )
 sim_6_result_df %>%
   kbl(caption = "The probabilities of Lasso when β1=1 and σ=4 ",digits=4,col.names = "Probability") %>%
