@@ -360,6 +360,7 @@ dgp_mc <- function(beta_one,sigma){
 }
 ```
 
+Part c.
 Test dgp_mc function for 10 mc simulations -- Skip
 ```{r}
 dataset_test <- dgp(10, 1.5)
@@ -473,7 +474,7 @@ write.csv(sim_6_result_df,"Assignment2_Q2_sim6.csv")
 
 ```
 
-Use kableExtra to present results 
+Part d. Use kableExtra to present results 
 ```{r}
 rownames(sim_1_result_df) <- c("Lasso including the first regressor (lambda1)",
                                "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
@@ -562,6 +563,29 @@ rownames(sim_6_result_df) <- c("Lasso including the first regressor (lambda1)",
 sim_6_result_df %>%
   kbl(caption = "The probabilities of Lasso when β1=1 and σ=4 ",digits=4,col.names = "Probability") %>%
   kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Part E
+1. Do the methods reliably select the relevant regressor Xi,1?
+
+Answer: The methods reliably select the relevant regressor Xi,1 as the probability of Lasso selecting the first regressor is always 0 in all 4 methods.
+
+
+2. Do they provide reliable control against inclusion of the irrelevant regressors?
+
+Answer: Roughly speaking, method 1, 2, and 3 provide reliable control against inclusion of irrelevant regressors. Method 4 has very high chance of incorporating irrelevant regressors. 
+
+
+3. Does their performances depend on σ?
+
+Answer: Generally speaking, the higher the sigma, the higher the chance of including irrelevant regressors. Thus, the performance is negatively related to the size of sigma.  
+
+
+4. Which is the preferred method out of the 4 considered based on your simulation results?
+
+Answer: Method 1. It definitely selects the relevant regressor Xi,1 and provide very reliable control against inclusions of irrelevant regressors since there is zero chance for LASSO to include irrelevant regressors. However, method 2, 3 and 4 are not so reliable as they may include irrelevant regressors in the LASSO.
+```{r}
+
 ```
 
 
