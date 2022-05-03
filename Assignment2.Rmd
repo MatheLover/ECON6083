@@ -124,7 +124,7 @@ dgp <- function(beta_one, sigma){
   matrix_x <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
   # Generate 300 irrelevant X variables 
-  matrix_x_ir <- matrix(rnorm(30*300, mean=0,sd=1), 30, 300)
+  matrix_x_ir <- matrix(rnorm(30*299, mean=0,sd=1), 30, 299)
   
   # Generate beta_one *  matrix_x
   beta_one_matrix_x <-  beta_one*matrix_x
@@ -156,17 +156,23 @@ dgp <- function(beta_one, sigma){
 }
 ```
 
-Test 
+Part B
+Test -- Skip in subsequent runs 
 ```{r} 
 # Test function dgp
 dataset_test <- dgp(10,1.5)
+
+# Loop
+# for (i in 1:2){
+#   dataset_test <- dgp(10,1.5)
+# }
 
 # Test lambda 1 and 2 expression
 lambda_1 <- 2 * 1.5 * ((2 * log(1 * 300) / 30)**(0.5))
 lambda_2 <- 2 * ((2 * log(1 * 300) / 30) ** (0.5))
 
 # lambda 3 and 4 -- # Find amount of penalty lambda by cross validation and search for lambda that gives min MSE 
-PredictorVariables <- paste("V", 5:304, sep="") ## particularly construct 300 control variables 
+PredictorVariables <- paste("V", 5:303, sep="") ## particularly construct 300 control variables 
 Formula <- formula(paste("yi ~ beta_one_x +", 
      paste(PredictorVariables, collapse=" + ")))
 Formula
@@ -179,63 +185,180 @@ cv_lambda_lasso # check MSE
 lambda_3 <- cv_lambda_lasso$lambda.1se
 lambda_4 <- cv_lambda_lasso$lambda.min
 
-# 4 models 
-# model 1
-lasso1.model <- glmnet(X,Y,alpha=1, lambda=lambda_1)
-lasso1.model $beta
+# Create a dataframe to store frequency of 8 scenarios(4 lambdas and 2 regressor requirements) satisfying 
+#    -- 1. Lasso including the first regressor Xi,1 
+#    ---2. Lasso inclduing at least one of the irrelevant regressors
 
+# Test 8 scenarios 
+# Initialize 8 counters 
+for (i in 1:8){
+  assign(paste("counter_",i), 0)
+}
+
+# model 1 -- Scenario 1 and 2
+lasso1.model <- glmnet(X,Y,alpha=1, lambda=lambda_1)
+lasso1.model$beta
+lasso1.model$beta[1,1]
+lasso1.model$beta[,1]
+sum(lasso1.model$beta[,1]!= 0)
+if (lasso1.model $beta[1,1] != 0){ # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1 
+  counter_1<- counter_1+ 1 # Requirement satisfied and Record frequency
+}
+
+if (counter_1== 1 & sum(lasso1.model$beta != 0) > 1){  # Scenario 2 -- lambda 1 and Lasso inclduing at least one of the irrelevant regressors
+  counter_2 <- counter_2+ 1
+}
+
+
+# Model 2 -- -- Scenario 3 and 4
 lasso2.model <- glmnet(X,Y,alpha=1, lambda=lambda_2)
 lasso2.model $beta
+sum(lasso2.model$beta != 0 )
+if (lasso2.model $beta[1,1] != 0){ # Scenario 3 -- lambda 2 and  Lasso including the first regressor Xi,1 
+  counter_3 <- counter_3 + 1 # Requirement satisfied and Record frequency
+}
 
+if (counter_3 == 1 & sum(lasso2.model$beta != 0) > 1){  # Scenario 4 -- lambda 2 and Lasso inclduing at least one of the irrelevant regressors
+  counter_4 <- counter_4+ 1
+}
+
+# Model 3 -- -- -- Scenario 5 and 6
 lasso3.model <- glmnet(X,Y,alpha=1, lambda=lambda_3)
 lasso3.model $beta
+sum(lasso3.model$beta != 0 )
+if (lasso3.model $beta[1,1] != 0){ # Scenario 5 -- lambda 3 and  Lasso including the first regressor Xi,1 
+  counter_5 <- counter_5 + 1 # Requirement satisfied and Record frequency
+}
 
+
+if (counter_5 == 1 & sum(lasso3.model$beta != 0) > 1){  # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
+  counter_6 <- counter_6 + 1
+}
+
+
+# Model 4 -- -- -- Scenario 7 and 8
 lasso4.model <- glmnet(X,Y,alpha=1, lambda=lambda_4)
 lasso4.model $beta
+sum(lasso4.model$beta != 0 )
+if (lasso4.model $beta[1,1] != 0){ # Scenario 5 -- lambda 4 and  Lasso including the first regressor Xi,1 
+  counter_7 <- counter_7 + 1 # Requirement satisfied and Record frequency
+}
+
+if (counter_7 == 1 & sum(lasso4.model$beta != 0) > 1){  # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
+  counter_8 <- counter_8 + 1
+}
+
+
 
 ```
 
-Part b
+Calculate lambda 1 and 2
 ```{r}
-dgp_mc <- function(n,beta_one,sigma){
-  # parameter
-  # 1. n -- number of mc repetitions 
-  # 2. beta_one
-  # 3. sigma
-  dataset_test <- data.frame(matrix(ncol=))
-  for(i in 1:n){
-    set.seed(i)
-    
-    # Generate dataset 
-    dataset_b <- dgp(beta_one,sigma)
+lambda_1 <- 2 * 1.5 * ((2 * log(1 * 300) / 30)**(0.5))
+lambda_2 <- 2 * ((2 * log(1 * 300) / 30) ** (0.5))
+```
 
-    lambda_1 <- 2 * sigma * ((2 * log(n * 300) / 30)**(0.5))
-    lambda_2 <- 2 * ((2 * log(n * 300) / 30)**(0.5))
-    cv_model <- cv.glmnet(beta_one, yi, data=dataset_b, alpha=1)
-    lambda_3 <-cv_model$lambda.1se
-    lambda_4 <- cv_model$lambda.min
-
-    # lambda 1 and Lasso including the first regressor Xi,1,
-    lasso1 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_1)
-
-    # lambda 1 and Lasso inclduing at least one of the irrelevant regressors
-    lasso2 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_1)
-
-    # lambda 2
-    lasso3 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_2)
-    lasso4 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_2)
-
-    # lambda 3
-    lasso5 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_3)
-    lasso6 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_3)
-
-    # lambda 4
-    lasso7 <- glmnet(yi ~ beta_one_x,data=dataset_b,alpha=1, lambda=lambda_4)
-    lasso8 <-  glmnet(yi ~ beta_one_x + Irrelevant_x,data=dataset_b,alpha=1,lambda=lambda_4)
-  
-    
-     
+Define dgp_mc function
+```{r}
+ # Initialize frequency counter 
+for (i in 1:8) {
+    assign(paste("counter_",i,sep=""), 0)
   }
+dgp_mc <- function(beta_one,sigma){
+  # parameter
+  # 1. beta_one
+  # 2. sigma
+  
+  # Generate dataset
+  dataset_b <- dgp(beta_one, sigma)
+  
+  # lambda 3 and 4 -- # Find amount of penalty lambda by cross validation and search for lambda that gives min MSE
+  ## Particularly construct 299 control variables
+  PredictorVariables <-
+    paste("V", 5:303, sep = "")
+  
+  ##Construct formulas and equations
+  Formula <- formula(paste("yi ~ beta_one_x +",
+                           paste(PredictorVariables, collapse = " + ")))
+  X <- model.matrix(Formula, data = dataset_test)[,-1]
+  Y <- dataset_test$yi
+  
+  ## does cross validation and return lambda values(pick lambda 3 and 4)
+  cv_lambda_lasso <- cv.glmnet(X, Y, alpha = 1)
+  # plot(cv_lambda_lasso)
+  # cv_lambda_lasso # check MSE
+  lambda_3 <- cv_lambda_lasso$lambda.1se
+  lambda_4 <- cv_lambda_lasso$lambda.min
+  
+  
+  # model 1 -- Scenario 1 and 2
+  lasso1.model <- glmnet(X, Y, alpha = 1, lambda = lambda_1)
+  lasso1.model$beta
+  lasso1.model$beta[1, 1]
+  lasso1.model$beta[, 1]
+  if (lasso1.model$beta[1, 1] != 0) {
+    # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1
+    counter_1 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  
+  if (counter_1 == 1 &
+      sum(lasso1.model$beta != 0) > 1) {
+    # Scenario 2 -- lambda 1 and Lasso inclduing at least one of the irrelevant regressors
+    counter_2 <- 1
+  }
+  
+  
+  # Model 2 -- -- Scenario 3 and 4
+  lasso2.model <- glmnet(X, Y, alpha = 1, lambda = lambda_2)
+  lasso2.model$beta
+  if (lasso2.model$beta[1, 1] != 0) {
+    # Scenario 3 -- lambda 2 and  Lasso including the first regressor Xi,1
+    counter_3 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  if (counter_3 == 1 &
+      sum(lasso2.model$beta != 0) > 1) {
+    # Scenario 4 -- lambda 2 and Lasso inclduing at least one of the irrelevant regressors
+    counter_4 <- 1
+  }
+  
+  # Model 3 -- -- -- Scenario 5 and 6
+  lasso3.model <- glmnet(X, Y, alpha = 1, lambda = lambda_3)
+  lasso3.model$beta
+  if (lasso3.model$beta[1, 1] != 0) {
+    # Scenario 5 -- lambda 3 and  Lasso including the first regressor Xi,1
+    counter_5 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  
+  if (counter_5 == 1 &
+      sum(lasso3.model$beta != 0) > 1) {
+    # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
+    counter_6 <-  1
+  }
+  
+  
+  # Model 4 -- -- -- Scenario 7 and 8
+  lasso4.model <- glmnet(X, Y, alpha = 1, lambda = lambda_4)
+  lasso4.model$beta
+  if (lasso4.model$beta[1, 1] != 0) {
+    # Scenario 5 -- lambda 4 and  Lasso including the first regressor Xi,1
+    counter_7 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  if (counter_7 == 1 &
+      sum(lasso4.model$beta != 0) > 1) {
+    # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
+    counter_8 <- 1
+  }
+  
+ 
+  
+  return counter_1
+  
+  # counter_2,counter_3,counter_4,counter_5,counter_6
+  
   
   
 
@@ -244,8 +367,12 @@ dgp_mc <- function(n,beta_one,sigma){
 }
 ```
 
+Test dgp_mc function for 10 mc simulations 
 ```{r}
-
+result_frame_sample <- data.frame(matrix(ncol = 8, nrow = 0))
+for i in (1:10){
+  dgp_mc
+}
 ```
 
 
