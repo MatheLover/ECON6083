@@ -119,7 +119,7 @@ summary(margins(Post.Logit), variables="fin")
 
 3. Adaptive Lasso selection does not help with estimation precision for the marginal effect of fin because the 95% CI and significance level are roughly the same . Financial aid does not have a significant effect on re-arrests the estimate is only at 10% significance level and the effect can be 0 since 0 is in the 95% CI.
 
-4. The probability of re-arrests is rougly 10% (1 - (e^(-0.07))) less if financial aid is provided. 
+4. The direction is making sense. The probability of re-arrests is rougly 10% (1 - (e^(-0.07))) less if financial aid is provided and doubles if the fraction of time increases by 1 unit an ex-convict was unemployed before re-arrested or until the end of the 52 weeks period, ceteri paribus. 
 
 
 
