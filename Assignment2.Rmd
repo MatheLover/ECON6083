@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 install.packages("carData")
 install.packages("glmnetUtils")
 install.packages("margins")
+install.packages("systemfonts")
+install.packages("kableExtra")
 ```
 
 ## Load packages 
@@ -23,6 +25,8 @@ library(glmnetUtils)
 library(margins)
 library(glmnetUtils)
 library(tidyverse)
+library(systemfonts)
+library(kableExtra)
 ```
 
 ## Dataset Info
@@ -469,10 +473,96 @@ write.csv(sim_6_result_df,"Assignment2_Q2_sim6.csv")
 
 ```
 
+Use kableExtra to present results 
 ```{r}
-
+rownames(sim_1_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_1_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=10 and σ=1.5 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
 ```
 
+```{r}
+rownames(sim_2_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_2_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=10 and σ=2 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_3_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_3_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=10 and σ=4 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_4_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_4_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=1 and σ=1.5 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_5_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_5_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=1 and σ=2 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_6_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso inclduing at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_6_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=1 and σ=4 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
 
 
  

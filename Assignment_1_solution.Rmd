@@ -1,0 +1,296 @@
+---
+title: "Assignment 1"
+output: html_document
+---
+
+#### Packages used:
+
+- `kableExtra`: For nice tables to report the results.
+- `foreach`: For loops in MC simulations.
+- `doParallel`, `doRNG`, `parallel`: for parallel computing.
+- `AER`: For 2SLS estimation with `ivreg()`.
+
+# Question 1
+
+### Part (a): Data generating process (DGP)
+
+##### We first define a custom function that generates the data:
+
+- An n-by-k matrix of covariates `X`.
+- An n-by-1 vector `D` - the main regressor.
+- An n-by-1 vector `Y` - the dependend variable.
+- We put everything into a data frame `Data`. 
+  - Note that the regressors will be numbered as `X.1`, `X.2`, and etc.
+
+```{r}
+DGP<-function(n,k){
+  X<-matrix(rnorm(n*k),ncol=k)
+  D<-rowMeans(X)+rnorm(n)*0.1
+  Y<-D+rnorm(n)
+  Data<-data.frame(Y=Y,D=D,X=X)
+  return(Data)
+}
+```
+
+##### Let's generate the data
+
+```{r}
+MyData<-DGP(n=100,k=20)
+names(MyData)
+```
+
+### Part (b)
+
+Let's run the regression with only `D`, and compute the standard error for the coefficient on `D`:
+
+```{r}
+ShortReg<-lm(Y~D,data=MyData)
+coef(summary(ShortReg))
+```
+
+We can "grab" the standard error for the coefficient on `D` and its p-value using
+
+```{r}
+StdErr_short=coef(summary(ShortReg))[2,2]
+StdErr_short
+pVal_short=coef(summary(ShortReg))[2,4]
+pVal_short
+```
+
+### Part (c)
+
+Let's run the "long regression" with all the covariates:
+
+- **Note**: we use `lm(Y~.,data=MyData)` to tell R to include all the variables (except for `Y`) in the data frame `MyData` on the right-hand side. 
+
+```{r}
+LongReg<-lm(Y~.,data=MyData)
+head(coef(summary(LongReg)),2)
+StdErr_long=coef(summary(LongReg))[2,2]
+pVal_long=coef(summary(LongReg))[2,4]
+```
+
+
+##### Combine the results in a data frame:
+
+```{r}
+StdErrs=c(StdErr_short,StdErr_long)
+pVals=c(pVal_short,pVal_long)
+Results=cbind(Controls=c("Excluded","Included"),data.frame(cbind("Std.Errors"=StdErrs,"p-values"=pVals)))
+Results
+```
+##### Report the results as a `kableExtra` table
+
+
+```{r}
+suppressMessages(library(kableExtra))
+```
+
+
+```{r}
+Results %>%
+  kbl(caption = "The standard errors and p-values on the main regressor, excluding and including irrelevant controls",digits=4) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+One can see that:
+
+- The standard error is smaller in the "short" regression that excludes the irrelevant controls.
+- As a result, the estimates in the short regression are more significant.
+
+### Part (d): MC simulations
+
+##### A function to collect the standard and p-values errors
+
+To avoid unnecessary copy/pasting of the same code, we can define custom function that collect the steps for repeated calculations. The function below runs the short and long regression for supplied data and collects the standard errors and p-values.
+
+```{r}
+RES<-function(MyData){
+  
+  ShortReg<-lm(Y~D,data=MyData)
+  StdErr_short=coef(summary(ShortReg))[2,2]
+  pVal_short=coef(summary(ShortReg))[2,4]
+  
+  LongReg<-lm(Y~.,data=MyData)
+  StdErr_long=coef(summary(LongReg))[2,2]
+  pVal_long=coef(summary(LongReg))[2,4]
+  
+  Result=c(StdErr_short,pVal_short, StdErr_long,pVal_long)
+  return(Result)
+  
+}
+```
+
+##### MC simulations
+
+We use:
+
+- The `system.time()` command to measure the time it takes to run code.
+- The `set.seed()` command to fix the seed for random number generation. This produces the same sequence of "random" numbers for reproducibility of our results.
+
+
+```{r}
+R=10^3 #the number of MC repetitions
+
+OUT<-matrix(,nrow=R,ncol=4) #the results from the loop below will be stored here
+
+set.seed(6083)
+system.time(
+for (r in 1:R) {
+  MyData<-DGP(100,20)
+  OUT[r,]<-RES(MyData)
+}
+)
+
+colnames(OUT)<-c("std_short","p_short","std_long","p_long")
+```
+
+##### Present the results 
+
+
+```{r}
+ave_std<-c(mean(OUT[,"std_short"]),mean(OUT[,"std_long"]))
+ave_sig<-c(mean((OUT[,"p_short"]<0.05)),mean((OUT[,"p_long"]<0.05)))
+MCResults<-cbind(Controls=c("Excluded","Included"),data.frame(ave_std,ave_sig))
+
+MCResults %>%
+  kable(caption = "The average across simulations standard errors and the fraction of significant p-values  on the main regressor, excluding and including irrelevant controls",digits=4,
+      col.names=c("Controls","Ave. Std. Error","Prob. Significant"),
+      ) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+**Note** that because we fixed the seed at the beginning, the same results will be produced in each execution of the code.
+
+**Conclusion**: 
+
+- Including many irrelevant covariates results in standard errors that are `r round(ave_std[2]/ave_std[1],digits=2)` bigger.
+- As a result, with many irrelevant covariates, the estimator on the main regressor is significant at 5% only in `r round(ave_sig[2]*100,digits=1)`% of the simulations. At the same time, when the irrelevant covariates are excluded, the estimator on the main regressor is significant in `r round(ave_sig[1]*100,digits=1)`% of the simulations.
+
+
+##### MC simulations using parallel computing/multiple cores
+
+Most modern computers have multiple CPU cores (2,4,8 or more). The previous code runs on a single core, and we can speed up the calculations by parallerizing the loop over multiple cores.
+
+- Set the `numCores` variable to the number of cores of your computer.
+- You can also use the command `detectCores(logical=F)` from the package `parallel` to automatically detect the number of available physical CPU cores.
+- We use: 
+  - The `foreach`, `doParallel` and `doRNG` packages to use multiple cores for the loop across MC simulations.
+  - The `.options.RNG` option from the `doRNG` package to set the seed for random number generation when using multiple cores. The simple `set.seed()` cannot be used with multiple cores.
+  - `%dorng%`from the package `doRNG` to distribute the iterations of the loop over multiple cores. One can alternatively use `%dopar%` from the package `doParallel` if there is no need to set the random seed for reproducibility. One can also use `foreach` with  `%do%` for non-parallel calculations.
+  - The option `.combine=rbind` to arrange the results in a matrix, where each row is a different MC iteration, and each column is a different statistic.
+
+
+
+
+```{r}
+library(foreach,quietly=T)
+library(doParallel,quietly=T)
+library(doRNG,quietly=T)
+library(parallel,quietly=T)
+
+numCores=detectCores(logical=F)
+registerDoParallel(numCores)
+```
+
+
+```{r}
+R=10^3 #the number of MC repetitions
+
+system.time(
+OUT_Parallel<-foreach(r=1:R, .options.RNG=6083, .combine=rbind) %dorng% {
+  MyData<-DGP(100,20)
+  RES(MyData)
+}
+)
+colnames(OUT_Parallel)<-c("std_short","p_short","std_long","p_long")
+```
+
+
+- **Note** the smaller elapsed time relatively to a single core execution. 
+- The relative speed gains would be more substantial if we increase the number of MC replications.
+
+##### Present the results 
+
+```{r}
+ave_std<-c(mean(OUT_Parallel[,"std_short"]),mean(OUT_Parallel[,"std_long"]))
+ave_sig<-c(mean(OUT_Parallel[,"p_short"]<0.05),mean(OUT_Parallel[,"p_long"]<0.05))
+
+MCResults<-cbind(Controls=c("Excluded","Included"),data.frame(cbind("Ave.Std.Error"=ave_std,"Prob.Significant"=ave_sig)))
+
+MCResults %>%
+  kbl(caption = "The average across simulations standard errors and the fraction of significant p-values  on the main regressor, excluding and including irrelevant controls",digits=4) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+# Question 2
+
+### Part (a) DGP
+
+```{r}
+DGP_IV<-function(n,l){
+  Z<-matrix(rnorm(n*l),ncol=l)
+  V=rnorm(n)
+  D<-Z[,1]+rowMeans(Z[,2:l])/sqrt(n)+V
+  U<-10*V+rnorm(n)
+  Y<-2*D+U
+  results<-list(Y=Y,D=D,Z=Z)
+  return(results)
+  }
+```
+
+```{r}
+MyIVData<-DGP_IV(100,40)
+names(MyIVData)
+```
+
+### Part (b) Simulations
+
+```{r}
+suppressMessages(library(AER))
+```
+
+
+##### Function to simulate data and compute the 2SLS estimator
+
+```{r}
+estimators<-function(n,l){
+  MyIVData<-DGP_IV(n,l)
+  beta_IV1<-coef(summary(ivreg(Y~D| Z[,1], data=MyIVData)))[2,1]
+  beta_IV4<-coef(summary(ivreg(Y~D| Z[,1:5], data=MyIVData)))[2,1]
+  beta_IV10<-coef(summary(ivreg(Y~D| Z[,1:10], data=MyIVData)))[2,1]
+  beta_IV15<-coef(summary(ivreg(Y~D| Z[,1:15], data=MyIVData)))[2,1]
+  beta_IV20<-coef(summary(ivreg(Y~D| Z[,1:20], data=MyIVData)))[2,1]
+  beta_IV25<-coef(summary(ivreg(Y~D| Z[,1:25], data=MyIVData)))[2,1]
+  beta_IV30<-coef(summary(ivreg(Y~D| Z[,1:30], data=MyIVData)))[2,1]
+  beta_IV35<-coef(summary(ivreg(Y~D| Z[,1:35], data=MyIVData)))[2,1]
+  beta_IV40<-coef(summary(ivreg(Y~D| Z, data=MyIVData)))[2,1]
+  return(c(beta_IV1,beta_IV4,beta_IV10,beta_IV15,beta_IV20,beta_IV25, beta_IV30,beta_IV35, beta_IV40))
+  }
+```
+
+
+##### MC simulations
+
+```{r}
+R=10^3
+system.time(
+  Results<-foreach(r=1:R, .options.RNG=6083, .combine=rbind) %dorng%  
+    {estimators(100,40)}
+)
+Biases<-round(abs(colMeans(Results)-2),digits=4)
+```
+
+
+```{r}
+plot(c(1,5,10,15,20,25,30,35,40),Biases,type="l",xlab="number of IVs",ylab="Bias",main="The bias of the 2SLS estimator as a function of the number of IVs")
+```
+
+
+**Conclusion**: 
+
+- The bias of the 2SLS estimator increases when we include more IVs as predicted by the theory.
+- The bias with 40 IVs is `r round(tail(Biases,n=1)/head(Biases,n=1),digits=2)` bigger than that with just one IV.
+
+----
