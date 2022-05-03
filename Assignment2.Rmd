@@ -191,62 +191,46 @@ lambda_4 <- cv_lambda_lasso$lambda.min
 
 # Test 8 scenarios 
 # Initialize 8 counters 
-for (i in 1:8){
-  assign(paste("counter_",i), 0)
+## Particularly construct 299 control variables
+PredictorVariables <-
+  paste("V", 5:303, sep = "")
+
+##Construct formulas and equations
+Formula <- formula(paste("yi ~ beta_one_x +",
+                         paste(PredictorVariables, collapse = " + ")))
+X <- model.matrix(Formula, data = dataset_test)[,-1]
+Y <- dataset_test$yi
+
+## does cross validation and return lambda values(pick lambda 3 and 4)
+cv_lambda_lasso <- cv.glmnet(X, Y, alpha = 1)
+# plot(cv_lambda_lasso)
+# cv_lambda_lasso # check MSE
+lambda_3 <- cv_lambda_lasso$lambda.1se
+lambda_4 <- cv_lambda_lasso$lambda.min
+
+for (i in 1:8) {
+  assign(paste("counter_", i, sep = ""), 0)
 }
 
 # model 1 -- Scenario 1 and 2
-lasso1.model <- glmnet(X,Y,alpha=1, lambda=lambda_1)
+lasso1.model <- glmnet(X, Y, alpha = 1, lambda = lambda_1)
 lasso1.model$beta
-lasso1.model$beta[1,1]
-lasso1.model$beta[,1]
-sum(lasso1.model$beta[,1]!= 0)
-if (lasso1.model $beta[1,1] != 0){ # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1 
-  counter_1<- counter_1+ 1 # Requirement satisfied and Record frequency
-}
-
-if (counter_1== 1 & sum(lasso1.model$beta != 0) > 1){  # Scenario 2 -- lambda 1 and Lasso inclduing at least one of the irrelevant regressors
-  counter_2 <- counter_2+ 1
+lasso1.model$beta[1, 1]
+lasso1.model$beta[, 1]
+if (lasso1.model$beta[1, 1] != 0) {
+  # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1
+  counter_1 <- 1 # Requirement satisfied and Record frequency
 }
 
 
-# Model 2 -- -- Scenario 3 and 4
-lasso2.model <- glmnet(X,Y,alpha=1, lambda=lambda_2)
-lasso2.model $beta
-sum(lasso2.model$beta != 0 )
-if (lasso2.model $beta[1,1] != 0){ # Scenario 3 -- lambda 2 and  Lasso including the first regressor Xi,1 
-  counter_3 <- counter_3 + 1 # Requirement satisfied and Record frequency
-}
-
-if (counter_3 == 1 & sum(lasso2.model$beta != 0) > 1){  # Scenario 4 -- lambda 2 and Lasso inclduing at least one of the irrelevant regressors
-  counter_4 <- counter_4+ 1
-}
-
-# Model 3 -- -- -- Scenario 5 and 6
-lasso3.model <- glmnet(X,Y,alpha=1, lambda=lambda_3)
-lasso3.model $beta
-sum(lasso3.model$beta != 0 )
-if (lasso3.model $beta[1,1] != 0){ # Scenario 5 -- lambda 3 and  Lasso including the first regressor Xi,1 
-  counter_5 <- counter_5 + 1 # Requirement satisfied and Record frequency
+if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
+  # Scenario 2 -- lambda 1 and Lasso inclduing at least one of the irrelevant regressors
+  counter_2 <- 1
 }
 
 
-if (counter_5 == 1 & sum(lasso3.model$beta != 0) > 1){  # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
-  counter_6 <- counter_6 + 1
-}
 
-
-# Model 4 -- -- -- Scenario 7 and 8
-lasso4.model <- glmnet(X,Y,alpha=1, lambda=lambda_4)
-lasso4.model $beta
-sum(lasso4.model$beta != 0 )
-if (lasso4.model $beta[1,1] != 0){ # Scenario 5 -- lambda 4 and  Lasso including the first regressor Xi,1 
-  counter_7 <- counter_7 + 1 # Requirement satisfied and Record frequency
-}
-
-if (counter_7 == 1 & sum(lasso4.model$beta != 0) > 1){  # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
-  counter_8 <- counter_8 + 1
-}
+  
 
 
 
@@ -277,7 +261,7 @@ dgp_mc <- function(beta_one,sigma){
   ##Construct formulas and equations
   Formula <- formula(paste("yi ~ beta_one_x +",
                            paste(PredictorVariables, collapse = " + ")))
-  X <- model.matrix(Formula, data = dataset_test)[,-1]
+  X <- model.matrix(Formula, data = dataset_test)[, -1]
   Y <- dataset_test$yi
   
   ## does cross validation and return lambda values(pick lambda 3 and 4)
@@ -288,7 +272,7 @@ dgp_mc <- function(beta_one,sigma){
   lambda_4 <- cv_lambda_lasso$lambda.min
   
   for (i in 1:8) {
-    assign(paste("counter_",i,sep=""), 0)
+    assign(paste("counter_", i, sep = ""), 0)
   }
   
   # model 1 -- Scenario 1 and 2
@@ -301,8 +285,7 @@ dgp_mc <- function(beta_one,sigma){
     counter_1 <- 1 # Requirement satisfied and Record frequency
   }
   
-  if (counter_1 == 1 &
-      sum(lasso1.model$beta != 0) > 1) {
+  if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
     # Scenario 2 -- lambda 1 and Lasso inclduing at least one of the irrelevant regressors
     counter_2 <- 1
   }
@@ -316,8 +299,7 @@ dgp_mc <- function(beta_one,sigma){
     counter_3 <- 1 # Requirement satisfied and Record frequency
   }
   
-  if (counter_3 == 1 &
-      sum(lasso2.model$beta != 0) > 1) {
+  if (sum(lasso2.model$beta[2:nrow(lasso2.model$beta), 1] != 0) > 1) {
     # Scenario 4 -- lambda 2 and Lasso inclduing at least one of the irrelevant regressors
     counter_4 <- 1
   }
@@ -331,8 +313,7 @@ dgp_mc <- function(beta_one,sigma){
   }
   
   
-  if (counter_5 == 1 &
-      sum(lasso3.model$beta != 0) > 1) {
+  if (sum(lasso3.model$beta[2:nrow(lasso3.model$beta), 1] != 0) > 1) {
     # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
     counter_6 <-  1
   }
@@ -346,23 +327,32 @@ dgp_mc <- function(beta_one,sigma){
     counter_7 <- 1 # Requirement satisfied and Record frequency
   }
   
-  if (counter_7 == 1 &
-      sum(lasso4.model$beta != 0) > 1) {
+  if (sum(lasso4.model$beta[2:nrow(lasso4.model$beta), 1] != 0) > 1) {
     # Scenario 6 -- lambda 3 and Lasso inclduing at least one of the irrelevant regressors
     counter_8 <- 1
   }
   
- 
-  vec <- cbind(counter_1,counter_2,counter_3,counter_4,counter_5,counter_6,counter_7,counter_8)
+  
+  vec <-
+    cbind(
+      counter_1,
+      counter_2,
+      counter_3,
+      counter_4,
+      counter_5,
+      counter_6,
+      counter_7,
+      counter_8
+    )
   return (vec) ## rmb to include ()
   
-
   
   
   
-
   
- 
+  
+  
+  
 }
 ```
 
@@ -448,28 +438,38 @@ Sum up each column
 ```{r}
 sim_1_result <- colSums(sim_1)
 sim_1_result_df <- as.data.frame(sim_1_result)
+sim_1_result_df <- sim_1_result_df / 1000
 write.csv(sim_1_result_df,"Assignment2_Q2_sim1.csv")
 
 sim_2_result <- colSums(sim_2)
 sim_2_result_df <- as.data.frame(sim_2_result)
+sim_2_result_df <- sim_2_result_df / 1000
 write.csv(sim_2_result_df,"Assignment2_Q2_sim2.csv")
 
 sim_3_result <- colSums(sim_3)
 sim_3_result_df <- as.data.frame(sim_3_result)
+sim_3_result_df <- sim_3_result_df / 1000
 write.csv(sim_3_result_df,"Assignment2_Q2_sim3.csv")
 
 sim_4_result <- colSums(sim_4)
 sim_4_result_df <- as.data.frame(sim_4_result)
+sim_4_result_df <- sim_4_result_df / 1000
 write.csv(sim_4_result_df,"Assignment2_Q2_sim4.csv")
 
 sim_5_result <- colSums(sim_5)
 sim_5_result_df <- as.data.frame(sim_5_result)
+sim_5_result_df <- sim_5_result_df / 1000
 write.csv(sim_5_result_df,"Assignment2_Q2_sim5.csv")
 
 sim_6_result <- colSums(sim_6)
 sim_6_result_df <- as.data.frame(sim_6_result)
+sim_6_result_df <- sim_6_result_df / 1000
 write.csv(sim_6_result_df,"Assignment2_Q2_sim6.csv")
 
+
+```
+
+```{r}
 
 ```
 
