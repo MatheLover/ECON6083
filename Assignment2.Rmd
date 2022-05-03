@@ -67,7 +67,7 @@ summary(margins(Logit,variables="fin"))
 ```
  
 
-Since the p-value is 0.0925 > 0.05, financial aid does not have a significant effect on re-arrests.
+The AME for fin is -0.0679 and the 95% CI is [-0.1471, 0.0112]. Since the p-value is 0.0925 > 0.05, financial aid does not have a significant effect on re-arrests.
  
 Part B
 ```{r}
@@ -84,32 +84,44 @@ w
 ```
  
 Part C 
+# Note: computing the weights for adaptive Lasso, we can use `alpha=0` or `alpha=1` since `lambda=0` (no penalty). However, later when computing adaptive Lasso estimates, you have to set `alpha=1`
+Select lambda based on one SE rule
 ```{r}
 set.seed(6083,sample.kind="Rejection")
-CV_AL=cv.glmnet(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family="binomial",alpha=0,standardize=FALSE, intercept=FALSE,penalty.factor=w)
-coef(CV_AL,CV_AL$lambda.1se)
+select_lambda <- cv.glmnet(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family="binomial",alpha=1,standardize=FALSE, intercept=FALSE,penalty.factor=w)
+lambda_q1 <- select_lambda$lambda.1se # one SE rule 
 ```
- 
+From part c, we select lambda =  0.444 for part d
+
 Part D
+# Note: computing the weights for adaptive Lasso, we can use `alpha=0` or `alpha=1` since `lambda=0` (no penalty). However, later when computing adaptive Lasso estimates, you have to set `alpha=1`
+Adaptive Lasso
 ```{r}
-X=model.matrix(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi)[,-1]
-y=Rossi$arrest
-
-# Adjust w
-adjust_w <- w
-adjust_w <- w[c(2,3,4,5,6,8,10,11,12)]
-adjust_w 
-
-CV=cv.glmnet(X,y,family="binomial",alpha=0,standardize=FALSE, penalty.factor=adjust_w, nfolds=10)
-plot(CV)
-coef(CV,s=CV$lambda.1se)
+coef(select_lambda,select_lambda$lambda.1se)
 ```
+From the result, we select fin and Wks. 
+
 Part E
 ```{r}
-Post.Logit <- glm(arrest~fin+age+wexp,data=Rossi,family=binomial(link="logit"))
+Post.Logit <- glm(arrest~fin+Wks,data=Rossi,family=binomial(link="logit"))
 coef(summary(Post.Logit))
-summary(margins(Post.Logit))
+summary(margins(Post.Logit), variables="fin")
 ```
+
+
+1. Significance Level: 
+
+  a. fin estimate is at 10% significance level
+  
+  b. wexp estimate is at 5% significance level
+  
+2. The AME for fin is -0.0759. 95% CI is [-0.1562, 0.0045]
+
+3. Adaptive Lasso selection does not help with estimation precision for the marginal effect of fin because the 95% CI and significance level are roughly the same . Financial aid does not have a significant effect on re-arrests the estimate is only at 10% significance level and the effect can be 0 since 0 is in the 95% CI.
+
+4. The probability of re-arrests is rougly 10% (1 - (e^(-0.07))) less if financial aid is provided. 
+
+
 
 
 Question 2: MC simulations for different choices of the Lasso penalty parameter λ 
