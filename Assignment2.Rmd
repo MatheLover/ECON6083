@@ -188,19 +188,6 @@ dataset_test <- dgp(10,1.5)
 lambda_1 <- 2 * 1.5 * ((2 * log(1 * 300) / 30)**(0.5))
 lambda_2 <- 2 * ((2 * log(1 * 300) / 30) ** (0.5))
 
-# lambda 3 and 4 -- # Find amount of penalty lambda by cross validation and search for lambda that gives min MSE 
-PredictorVariables <- paste("V", 5:303, sep="") ## particularly construct 300 control variables 
-Formula <- formula(paste("yi ~ beta_one_x +", 
-     paste(PredictorVariables, collapse=" + ")))
-Formula
-X <- model.matrix(Formula, data=dataset_test)[,-1]  ## Model equation 
-Y <- dataset_test$yi # Model equation 
-cv_lambda_lasso <- cv.glmnet(X, Y, alpha=1) 
-plot(cv_lambda_lasso)
-cv_lambda_lasso # check MSE
-# cv_lambda_lasso$glmnet.fit
-lambda_3 <- cv_lambda_lasso$lambda.1se
-lambda_4 <- cv_lambda_lasso$lambda.min
 
 # Create a dataframe to store frequency of 8 scenarios(4 lambdas and 2 regressor requirements) satisfying 
 #    -- 1. Lasso including the first regressor Xi,1 
@@ -215,7 +202,7 @@ PredictorVariables <-
 ##Construct formulas and equations
 Formula <- formula(paste("yi ~ beta_one_x +",
                          paste(PredictorVariables, collapse = " + ")))
-X <- model.matrix(Formula, data = dataset_test)[,-1]
+X <- model.matrix(Formula, data = dataset_test) #[,-1]
 Y <- dataset_test$yi
 
 ## does cross validation and return lambda values(pick lambda 3 and 4)
@@ -232,15 +219,15 @@ for (i in 1:8) {
 # model 1 -- Scenario 1 and 2
 lasso1.model <- glmnet(X, Y, alpha = 1, lambda = lambda_1)
 lasso1.model$beta
-lasso1.model$beta[1, 1]
+lasso1.model$beta[2, 1]
 lasso1.model$beta[, 1]
-if (lasso1.model$beta[1, 1] != 0) {
+if (lasso1.model$beta[2, 1] != 0) {
   # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1
   counter_1 <- 1 # Requirement satisfied and Record frequency
 }
 
 
-if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
+if (sum(lasso1.model$beta[3:nrow(lasso1.model$beta), 1] != 0) > 1) {
   # Scenario 2 -- lambda 1 and Lasso including at least one of the irrelevant regressors
   counter_2 <- 1
 }
@@ -259,8 +246,8 @@ Workflow:
 3. Use glmnet() to obtain estimated coefficients
 4. Based on 4 different choices of the penalty parameter λ, Count instances satisfying 
 
-  i) Lasso including the first regressor Xi,1 (coeffcient of Xi,1 != 0), and 
-  ii) Lasso inclduing at least one of the irrelevant regressors(coefficient of at least one irrelevant regressor != 0) 
+  i) Lasso including the first regressor Xi,1 (coefficient of Xi,1 != 0), and 
+  ii) Lasso including at least one of the irrelevant regressors(coefficient of at least one irrelevant regressor != 0) 
   
   
 
@@ -290,7 +277,7 @@ dgp_mc <- function(beta_one,sigma){
   ## Construct formulas and equations
   Formula <- formula(paste("yi ~ beta_one_x +",
                            paste(PredictorVariables, collapse = " + ")))
-  X <- model.matrix(Formula, data = dataset_test)[, -1]
+  X <- model.matrix(Formula, data = dataset_test)
   Y <- dataset_test$yi
   
   ## Does cross validation and return lambda values(pick lambda 3 and 4)
@@ -308,14 +295,14 @@ dgp_mc <- function(beta_one,sigma){
   # model 1 -- Scenario 1 and 2
   lasso1.model <- glmnet(X, Y, alpha = 1, lambda = lambda_1)
   lasso1.model$beta
-  lasso1.model$beta[1, 1]
+  lasso1.model$beta[2, 1]
   lasso1.model$beta[, 1]
-  if (lasso1.model$beta[1, 1] != 0) {
+  if (lasso1.model$beta[2, 1] != 0) {
     # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1
     counter_1 <- 1 # Requirement satisfied and Record frequency
   }
   
-  if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
+  if (sum(lasso1.model$beta[3:nrow(lasso1.model$beta), 1] != 0) > 1) {
     # Scenario 2 -- lambda 1 and Lasso including at least one of the irrelevant regressors
     counter_2 <- 1
   }
@@ -324,12 +311,12 @@ dgp_mc <- function(beta_one,sigma){
   # Model 2 -- -- Scenario 3 and 4
   lasso2.model <- glmnet(X, Y, alpha = 1, lambda = lambda_2)
   lasso2.model$beta
-  if (lasso2.model$beta[1, 1] != 0) {
+  if (lasso2.model$beta[2, 1] != 0) {
     # Scenario 3 -- lambda 2 and  Lasso including the first regressor Xi,1
     counter_3 <- 1 # Requirement satisfied and Record frequency
   }
   
-  if (sum(lasso2.model$beta[2:nrow(lasso2.model$beta), 1] != 0) > 1) {
+  if (sum(lasso2.model$beta[3:nrow(lasso2.model$beta), 1] != 0) > 1) {
     # Scenario 4 -- lambda 2 and Lasso including at least one of the irrelevant regressors
     counter_4 <- 1
   }
@@ -337,13 +324,13 @@ dgp_mc <- function(beta_one,sigma){
   # Model 3 -- -- -- Scenario 5 and 6
   lasso3.model <- glmnet(X, Y, alpha = 1, lambda = lambda_3)
   lasso3.model$beta
-  if (lasso3.model$beta[1, 1] != 0) {
+  if (lasso3.model$beta[2, 1] != 0) {
     # Scenario 5 -- lambda 3 and  Lasso including the first regressor Xi,1
     counter_5 <- 1 # Requirement satisfied and Record frequency
   }
   
   
-  if (sum(lasso3.model$beta[2:nrow(lasso3.model$beta), 1] != 0) > 1) {
+  if (sum(lasso3.model$beta[3:nrow(lasso3.model$beta), 1] != 0) > 1) {
     # Scenario 6 -- lambda 3 and Lasso including at least one of the irrelevant regressors
     counter_6 <-  1
   }
@@ -352,12 +339,12 @@ dgp_mc <- function(beta_one,sigma){
   # Model 4 -- -- -- Scenario 7 and 8
   lasso4.model <- glmnet(X, Y, alpha = 1, lambda = lambda_4)
   lasso4.model$beta
-  if (lasso4.model$beta[1, 1] != 0) {
+  if (lasso4.model$beta[2, 1] != 0) {
     # Scenario 5 -- lambda 4 and  Lasso including the first regressor Xi,1
     counter_7 <- 1 # Requirement satisfied and Record frequency
   }
   
-  if (sum(lasso4.model$beta[2:nrow(lasso4.model$beta), 1] != 0) > 1) {
+  if (sum(lasso4.model$beta[3:nrow(lasso4.model$beta), 1] != 0) > 1) {
     # Scenario 6 -- lambda 3 and Lasso including at least one of the irrelevant regressors
     counter_8 <- 1
   }
@@ -594,7 +581,7 @@ sim_6_result_df %>%
 Part E
 1. Do the methods reliably select the relevant regressor Xi,1?
 
-Answer: The methods reliably select the relevant regressor Xi,1 as the probability of Lasso selecting the first regressor is always 0 in all 4 methods.
+Answer: The methods reliably select the relevant regressor Xi,1 as the probability of Lasso selecting the first regressor is always 1 in all 4 methods.
 
 
 2. Do they provide reliable control against inclusion of the irrelevant regressors?
