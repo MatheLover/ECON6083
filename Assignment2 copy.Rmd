@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 install.packages("carData")
 install.packages("glmnetUtils")
 install.packages("margins")
+install.packages("systemfonts")
+install.packages("kableExtra")
 ```
 
 ## Load packages 
@@ -22,6 +24,9 @@ library(carData)
 library(glmnetUtils)
 library(margins)
 library(glmnetUtils)
+library(tidyverse)
+library(systemfonts)
+library(kableExtra)
 ```
 
 ## Dataset Info
@@ -62,7 +67,7 @@ summary(margins(Logit,variables="fin"))
 ```
  
 
-Since the p-value is 0.0925 > 0.05, financial aid does not have a significant effect on re-arrests.
+The AME for fin is -0.0679 and the 95% CI is [-0.1471, 0.0112]. Since the p-value is 0.0925 > 0.05, financial aid does not have a significant effect on re-arrests.
  
 Part B
 ```{r}
@@ -79,68 +84,85 @@ w
 ```
  
 Part C 
+# Note: computing the weights for adaptive Lasso, we can use `alpha=0` or `alpha=1` since `lambda=0` (no penalty). However, later when computing adaptive Lasso estimates, you have to set `alpha=1`
+Select lambda based on one SE rule
 ```{r}
 set.seed(6083,sample.kind="Rejection")
-CV_AL=cv.glmnet(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family="binomial",alpha=0,standardize=FALSE, intercept=FALSE,penalty.factor=w)
-coef(CV_AL,CV_AL$lambda.1se)
+select_lambda <- cv.glmnet(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,family="binomial",alpha=1,standardize=FALSE, intercept=FALSE,penalty.factor=w)
+lambda_q1 <- select_lambda$lambda.1se # one SE rule 
 ```
- 
+From part c, we select lambda =  0.444 for part d
+
 Part D
+# Note: computing the weights for adaptive Lasso, we can use `alpha=0` or `alpha=1` since `lambda=0` (no penalty). However, later when computing adaptive Lasso estimates, you have to set `alpha=1`
+Adaptive Lasso
 ```{r}
-X=model.matrix(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi)[,-1]
-y=Rossi$arrest
-
-# Adjust w
-adjust_w <- w
-adjust_w <- w[c(2,3,4,5,6,8,10,11,12)]
-adjust_w 
-
-CV=cv.glmnet(X,y,family="binomial",alpha=0,standardize=FALSE, penalty.factor=adjust_w, nfolds=10)
-plot(CV)
-coef(CV,s=CV$lambda.1se)
+coef(select_lambda,select_lambda$lambda.1se)
 ```
+From the result, we select fin and Wks. 
+
 Part E
 ```{r}
-Post.Logit <- glm(arrest~fin+age+wexp,data=Rossi,family=binomial(link="logit"))
+Post.Logit <- glm(arrest~fin+Wks,data=Rossi,family=binomial(link="logit"))
 coef(summary(Post.Logit))
-summary(margins(Post.Logit))
+summary(margins(Post.Logit), variables="fin")
 ```
+
+
+1. Significance Level: 
+
+  a. fin estimate is at 10% significance level
+  
+  b. wexp estimate is at 5% significance level
+  
+2. The AME for fin is -0.0759. 95% CI is [-0.1562, 0.0045]
+
+3. Adaptive Lasso selection does not help with estimation precision for the marginal effect of fin because the 95% CI and significance level are roughly the same . Financial aid does not have a significant effect on re-arrests the estimate is only at 10% significance level and the effect can be 0 since 0 is in the 95% CI.
+
+4. The direction is making sense. The probability of re-arrests is rougly 10% (1 - (e^(-0.07))) less if financial aid is provided and doubles if the fraction of time increases by 1 unit an ex-convict was unemployed before re-arrested or until the end of the 52 weeks period, ceteri paribus. 
+
+
 
 
 Question 2: MC simulations for different choices of the Lasso penalty parameter λ 
+Note: if you want to use one regressor, consider this expression : lasso <- cv.glmnet(cbind(0, x1),y,alpha = 1)
 Part a.
 ```{r}
-dgp <- function(β_one, σ){
+dgp <- function(beta_one, sigma){
   # Parameter
-  # 1. β_one 
-  # 2. σ 
+  # 1. beta_one 
+  # 2. sigma 
   
-  # Generate β0
-  matrix_β_zero <- matrix(1, 30, 1)
+  # Generate beta0
+  matrix_beta_zero <- matrix(1, 30, 1)
   
   # Generate X1,1 .... X30,1
   matrix_x <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
-  # Generate β_one *  matrix_x
-  β_one_matrix_x <-  β_one*matrix_x
+  # Generate 300 irrelevant X variables 
+  matrix_x_ir <- matrix(rnorm(30*299, mean=0,sd=1), 30, 299)
+  
+  # Generate beta_one *  matrix_x
+  beta_one_matrix_x <-  beta_one*matrix_x
   
   # Generate Ui 
   matrix_u <- matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
-  # Generate σ * U
-  σ_matrix_u <- σ * matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
+  # Generate sigma * U
+  sigma_matrix_u <- sigma * matrix(rnorm(30*1, mean=0,sd=1), 30, 1)
   
   # Generate Yi
-  y <- matrix_β_zero + β_one_matrix_x + σ_matrix_u
+  y <- matrix_beta_zero + beta_one_matrix_x + sigma_matrix_u
   
   # Rename matrix columns 
   colnames(y) <- "yi"
-  colnames(matrix_β_zero) <- "β_zero"
-  colnames(β_one_matrix_x) <- "β_one_x"
-  colnames(σ_matrix_u) <- "σ_u"
+  colnames(matrix_beta_zero) <- "beta_zero"
+  colnames(beta_one_matrix_x) <- "beta_one_x"
+  colnames(sigma_matrix_u) <- "sigma_u"
+  # colnames(matrix_x_ir) <- "Irrelevant_x"
   
   # cbind matrixes 
-  dataset <- cbind(y,matrix_β_zero,β_one_matrix_x,σ_matrix_u)
+  dataset <- cbind(y,matrix_beta_zero,beta_one_matrix_x,sigma_matrix_u,matrix_x_ir)
   
    # Convert matrix to dataframe 
   dataset.data.frame <- as.data.frame(dataset)
@@ -150,26 +172,462 @@ dgp <- function(β_one, σ){
 }
 ```
 
-Part b
-```{r}
-dgp_mc <- function(n,β_one,σ){
-  # parameter
-  # 1. n -- number of mc repetitions 
-  # 2. β_one
-  # 3. σ
+Part B
+
+Test -- Skip in subsequent runs 
+```{r} 
+# Test function dgp
+dataset_test <- dgp(10,1.5)
+
+# Loop
+# for (i in 1:2){
+#   dataset_test <- dgp(10,1.5)
+# }
+
+# Test lambda 1 and 2 expression
+lambda_1 <- 2 * 1.5 * ((2 * log(1 * 300) / 30)**(0.5))
+lambda_2 <- 2 * ((2 * log(1 * 300) / 30) ** (0.5))
+
+# lambda 3 and 4 -- # Find amount of penalty lambda by cross validation and search for lambda that gives min MSE 
+PredictorVariables <- paste("V", 5:303, sep="") ## particularly construct 300 control variables 
+Formula <- formula(paste("yi ~ beta_one_x +", 
+     paste(PredictorVariables, collapse=" + ")))
+Formula
+X <- model.matrix(Formula, data=dataset_test)[,-1]  ## Model equation 
+Y <- dataset_test$yi # Model equation 
+cv_lambda_lasso <- cv.glmnet(X, Y, alpha=1) 
+plot(cv_lambda_lasso)
+cv_lambda_lasso # check MSE
+# cv_lambda_lasso$glmnet.fit
+lambda_3 <- cv_lambda_lasso$lambda.1se
+lambda_4 <- cv_lambda_lasso$lambda.min
+
+# Create a dataframe to store frequency of 8 scenarios(4 lambdas and 2 regressor requirements) satisfying 
+#    -- 1. Lasso including the first regressor Xi,1 
+#    ---2. Lasso including at least one of the irrelevant regressors
+
+# Test 8 scenarios 
+# Initialize 8 counters 
+## Particularly construct 299 control variables
+PredictorVariables <-
+  paste("V", 5:303, sep = "")
+
+##Construct formulas and equations
+Formula <- formula(paste("yi ~ beta_one_x +",
+                         paste(PredictorVariables, collapse = " + ")))
+X <- model.matrix(Formula, data = dataset_test)[,-1]
+Y <- dataset_test$yi
+
+## does cross validation and return lambda values(pick lambda 3 and 4)
+cv_lambda_lasso <- cv.glmnet(X, Y, alpha = 1)
+# plot(cv_lambda_lasso)
+# cv_lambda_lasso # check MSE
+lambda_3 <- cv_lambda_lasso$lambda.1se
+lambda_4 <- cv_lambda_lasso$lambda.min
+
+for (i in 1:8) {
+  assign(paste("counter_", i, sep = ""), 0)
+}
+
+# model 1 -- Scenario 1 and 2
+lasso1.model <- glmnet(X, Y, alpha = 1, lambda = lambda_1)
+lasso1.model$beta
+lasso1.model$beta[1, 1]
+lasso1.model$beta[, 1]
+if (lasso1.model$beta[1, 1] != 0) {
+  # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1
+  counter_1 <- 1 # Requirement satisfied and Record frequency
+}
+
+
+if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
+  # Scenario 2 -- lambda 1 and Lasso including at least one of the irrelevant regressors
+  counter_2 <- 1
+}
+
+
+
   
-  for(i in 1:n){
-    set.seed(i)
-    
-    # Generate dataset 
-    dataset_b <- dgp(β_one,σ)
-    
-    # Generate lamda
-    lambda_1 <- 2 * σ * ((2 * log(n * 300) / 30)**(0.5))
-    lambda_2 <- 2 * ((2 * log(n * 300) / 30)**(0.5))
-    
+
+
+
+```
+
+Workflow:
+1. Calculate lambda 1 and 2
+2. Use cv.glmnet() to obtain lambda 3 and 4
+3. Use glmnet() to obtain estimated coefficients
+4. Based on 4 different choices of the penalty parameter λ, Count instances satisfying 
+
+  i) Lasso including the first regressor Xi,1 (coeffcient of Xi,1 != 0), and 
+  ii) Lasso inclduing at least one of the irrelevant regressors(coefficient of at least one irrelevant regressor != 0) 
+  
+  
+
+
+Calculate lambda 1 and 2
+```{r}
+lambda_1 <- 2 * 1.5 * ((2 * log(1 * 300) / 30)**(0.5))
+lambda_2 <- 2 * ((2 * log(1 * 300) / 30) ** (0.5))
+```
+
+Define dgp_mc function
+```{r}
+ # Initialize frequency counter 
+dgp_mc <- function(beta_one,sigma){
+  # parameter
+  # 1. beta_one
+  # 2. sigma
+  
+  # Generate dataset
+  # dataset_b <- dgp(beta_one, sigma)
+  
+  # lambda 3 and 4 -- # Find amount of penalty lambda by cross validation and search for lambda that gives min MSE
+  ## Particularly construct 299 control variables
+  PredictorVariables <-
+    paste("V", 5:303, sep = "")
+  
+  ## Construct formulas and equations
+  Formula <- formula(paste("yi ~ beta_one_x +",
+                           paste(PredictorVariables, collapse = " + ")))
+  X <- model.matrix(Formula, data = dataset_test)[, -1]
+  Y <- dataset_test$yi
+  
+  ## Does cross validation and return lambda values(pick lambda 3 and 4)
+  cv_lambda_lasso <- cv.glmnet(X, Y, alpha = 1)
+  # plot(cv_lambda_lasso)
+  # cv_lambda_lasso # check MSE
+  lambda_3 <- cv_lambda_lasso$lambda.1se
+  lambda_4 <- cv_lambda_lasso$lambda.min
+  
+  # Initialize counter variable 
+  for (i in 1:8) {
+    assign(paste("counter_", i, sep = ""), 0)
   }
+  
+  # model 1 -- Scenario 1 and 2
+  lasso1.model <- glmnet(X, Y, alpha = 1, lambda = lambda_1)
+  lasso1.model$beta
+  lasso1.model$beta[1, 1]
+  lasso1.model$beta[, 1]
+  if (lasso1.model$beta[1, 1] != 0) {
+    # Scenario 1 -- lambda 1 and  Lasso including the first regressor Xi,1
+    counter_1 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  if (sum(lasso1.model$beta[2:nrow(lasso1.model$beta), 1] != 0) > 1) {
+    # Scenario 2 -- lambda 1 and Lasso including at least one of the irrelevant regressors
+    counter_2 <- 1
+  }
+  
+  
+  # Model 2 -- -- Scenario 3 and 4
+  lasso2.model <- glmnet(X, Y, alpha = 1, lambda = lambda_2)
+  lasso2.model$beta
+  if (lasso2.model$beta[1, 1] != 0) {
+    # Scenario 3 -- lambda 2 and  Lasso including the first regressor Xi,1
+    counter_3 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  if (sum(lasso2.model$beta[2:nrow(lasso2.model$beta), 1] != 0) > 1) {
+    # Scenario 4 -- lambda 2 and Lasso including at least one of the irrelevant regressors
+    counter_4 <- 1
+  }
+  
+  # Model 3 -- -- -- Scenario 5 and 6
+  lasso3.model <- glmnet(X, Y, alpha = 1, lambda = lambda_3)
+  lasso3.model$beta
+  if (lasso3.model$beta[1, 1] != 0) {
+    # Scenario 5 -- lambda 3 and  Lasso including the first regressor Xi,1
+    counter_5 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  
+  if (sum(lasso3.model$beta[2:nrow(lasso3.model$beta), 1] != 0) > 1) {
+    # Scenario 6 -- lambda 3 and Lasso including at least one of the irrelevant regressors
+    counter_6 <-  1
+  }
+  
+  
+  # Model 4 -- -- -- Scenario 7 and 8
+  lasso4.model <- glmnet(X, Y, alpha = 1, lambda = lambda_4)
+  lasso4.model$beta
+  if (lasso4.model$beta[1, 1] != 0) {
+    # Scenario 5 -- lambda 4 and  Lasso including the first regressor Xi,1
+    counter_7 <- 1 # Requirement satisfied and Record frequency
+  }
+  
+  if (sum(lasso4.model$beta[2:nrow(lasso4.model$beta), 1] != 0) > 1) {
+    # Scenario 6 -- lambda 3 and Lasso including at least one of the irrelevant regressors
+    counter_8 <- 1
+  }
+  
+  
+  vec <-
+    cbind(
+      counter_1,
+      counter_2,
+      counter_3,
+      counter_4,
+      counter_5,
+      counter_6,
+      counter_7,
+      counter_8
+    )
+  return (vec) ## rmb to include ()
+  
+  
+  
+  
+  
+  
+  
+  
 }
 ```
+
+Part c.
+Test dgp_mc function for 10 mc simulations -- Skip
+```{r}
+dataset_test <- dgp(10, 1.5)
+test <- data.frame(matrix(ncol = 8, nrow = 0))
+for (i in 1:10){
+  vec <- dgp_mc(10,1.5)
+  test <- rbind(test, vec)
+}
+```
+
+Run MC simulation when β1=10 and σ=1.5 for R=1000
+```{r}
+set.seed(123)
+dataset_test <- dgp(10, 1.5)
+sim_1 <- data.frame(matrix(ncol = 8, nrow = 0))
+for (i in 1:1000){
+  vec <- dgp_mc(10,1.5)
+  sim_1 <- rbind(sim_1, vec)
+}
+
+```
+
+
+Run MC simulation when β1=10 and σ=2 for R=1000
+```{r}
+set.seed(124)
+dataset_test <- dgp(10, 2)
+sim_2 <- data.frame(matrix(ncol = 8, nrow = 0))
+for (i in 1:1000){
+  vec <- dgp_mc(10,2)
+  sim_2 <- rbind(sim_2, vec)
+}
+```
+
+Run MC simulation when β1=10 and σ=4 for R=1000
+```{r}
+set.seed(125)
+dataset_test <- dgp(10, 4)
+sim_3 <- data.frame(matrix(ncol = 8, nrow = 0))
+for (i in 1:1000){
+  vec <- dgp_mc(10,4)
+  sim_3 <- rbind(sim_3, vec)
+}
+```
+
+Run MC simulation when β1=1 and σ=1.5 for R=1000
+```{r}
+set.seed(126)
+dataset_test <- dgp(1, 1.5)
+sim_4 <- data.frame(matrix(ncol = 8, nrow = 0))
+for (i in 1:1000){
+  vec <- dgp_mc(1,1.5)
+  sim_4 <- rbind(sim_4, vec)
+}
+```
+
+Run MC simulation when β1=1 and σ=2 for R=1000
+```{r}
+set.seed(127)
+dataset_test <- dgp(1, 2)
+sim_5 <- data.frame(matrix(ncol = 8, nrow = 0))
+for (i in 1:1000){
+  vec <- dgp_mc(1,2)
+  sim_5 <- rbind(sim_5, vec)
+}
+```
+
+Run MC simulation when β1=1 and σ=4 for R=1000
+```{r}
+set.seed(128)
+dataset_test <- dgp(1, 4)
+sim_6 <- data.frame(matrix(ncol = 8, nrow = 0))
+for (i in 1:1000){
+  vec <- dgp_mc(1,4)
+  sim_6 <- rbind(sim_6, vec)
+}
+```
+
+Sum up each column
+```{r}
+sim_1_result <- colSums(sim_1)
+sim_1_result_df <- as.data.frame(sim_1_result)
+sim_1_result_df <- sim_1_result_df / 1000
+write.csv(sim_1_result_df,"Assignment2_Q2_sim1.csv")
+
+sim_2_result <- colSums(sim_2)
+sim_2_result_df <- as.data.frame(sim_2_result)
+sim_2_result_df <- sim_2_result_df / 1000
+write.csv(sim_2_result_df,"Assignment2_Q2_sim2.csv")
+
+sim_3_result <- colSums(sim_3)
+sim_3_result_df <- as.data.frame(sim_3_result)
+sim_3_result_df <- sim_3_result_df / 1000
+write.csv(sim_3_result_df,"Assignment2_Q2_sim3.csv")
+
+sim_4_result <- colSums(sim_4)
+sim_4_result_df <- as.data.frame(sim_4_result)
+sim_4_result_df <- sim_4_result_df / 1000
+write.csv(sim_4_result_df,"Assignment2_Q2_sim4.csv")
+
+sim_5_result <- colSums(sim_5)
+sim_5_result_df <- as.data.frame(sim_5_result)
+sim_5_result_df <- sim_5_result_df / 1000
+write.csv(sim_5_result_df,"Assignment2_Q2_sim5.csv")
+
+sim_6_result <- colSums(sim_6)
+sim_6_result_df <- as.data.frame(sim_6_result)
+sim_6_result_df <- sim_6_result_df / 1000
+write.csv(sim_6_result_df,"Assignment2_Q2_sim6.csv")
+
+
+```
+
+Part d. Use kableExtra to present results 
+```{r}
+rownames(sim_1_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_1_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=10 and σ=1.5 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_2_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_2_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=10 and σ=2 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_3_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_3_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=10 and σ=4 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_4_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_4_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=1 and σ=1.5 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_5_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_5_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=1 and σ=2 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+```{r}
+rownames(sim_6_result_df) <- c("Lasso including the first regressor (lambda1)",
+                               "Lasso including at least one of the irrelevant regressors (lambda1)",
+                               "Lasso including the first regressor (lambda2)",
+                               "Lasso including at least one of the irrelevant regressors (lambda2)",
+                               "Lasso including the first regressor (lambda3)",
+                               "Lasso including at least one of the irrelevant regressors (lambda3)",
+                               "Lasso including the first regressor (lambda4)",
+                               "Lasso including at least one of the irrelevant regressors (lambda4)"
+                               )
+sim_6_result_df %>%
+  kbl(caption = "The probabilities of Lasso when β1=1 and σ=4 ",digits=4,col.names = "Probability") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+Part E
+1. Do the methods reliably select the relevant regressor Xi,1?
+
+Answer: The methods reliably select the relevant regressor Xi,1 as the probability of Lasso selecting the first regressor is always 0 in all 4 methods.
+
+
+2. Do they provide reliable control against inclusion of the irrelevant regressors?
+
+Answer: Roughly speaking, method 1, 2, and 3 provide reliable control against inclusion of irrelevant regressors. Method 4 has very high chance of incorporating irrelevant regressors. 
+
+
+3. Does their performances depend on σ?
+
+Answer: Generally speaking, the higher the sigma, the higher the chance of including irrelevant regressors. Thus, the performance is negatively related to the size of sigma.  
+
+
+4. Which is the preferred method out of the 4 considered based on your simulation results?
+
+Answer: Method 1. It definitely selects the relevant regressor Xi,1 and provide very reliable control against inclusions of irrelevant regressors since there is zero chance for LASSO to include irrelevant regressors. However, method 2, 3 and 4 are not so reliable as they may include irrelevant regressors in the LASSO.
+
+
+Part F
+
+1. Discuss how the results change relatively to when β1=10.
+
+Answer: When beta one becomes 1, the chance of selecting relevant regressor decreases significantly.In most cases, the chance of incorporating irrelevant regressors decreases slightly.
+
+
+2. Explain the differences between the results for different values of σ.
+
+Answer: When sigma becomes larger, the chance of including the first(relevant) regressor decreases noticeably. 
+
+
+3. Does any method work reliably when the coefficient on the true regression is small?
+
+Answer: Generally speaking, no methods are reliable if the coefficient is too small because the chance of including relevant regressor is approximately 0.  
+
+
 
  

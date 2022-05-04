@@ -78,8 +78,8 @@ Lasso <- glmnet(arrest~fin+age+race+wexp+mar+paro+prio+educ+Wks,data=Rossi,famil
 coef(Lasso)
 
 # Generate the penalty weights
-w=1/abs(coef(Lasso)[-1])
-w[1:2]=0
+w=1/abs(coef(Lasso)[-1]) # [-1] -- Drop the intercept; do not penalize fin; computing the weights for adaptive Lasso, we can use `alpha=0` or `alpha=1` since `lambda=0` (no penalty)
+w[1:2]=0 # set the weights of the first two coefficients to zero
 w
 ```
  
