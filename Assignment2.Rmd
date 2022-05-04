@@ -608,12 +608,12 @@ Answer: When beta one becomes 1, the chance of selecting relevant regressor decr
 
 2. Explain the differences between the results for different values of σ.
 
-Answer: When sigma becomes larger, the chance of including the first(relevant) regressor decreases noticeably. 
+Answer: When sigma becomes larger, the chance of including the first(relevant) regressor and incorporating irrelevant regressors decrease noticeably. 
 
 
 3. Does any method work reliably when the coefficient on the true regression is small?
 
-Answer: Generally speaking, no methods are reliable if the coefficient is too small because the chance of including relevant regressor is approximately 0.  
+Answer: Generally speaking, no methods are reliable if the coefficient is too small because in most cases the chance of including relevant regressor is approximately 0.  
 
 
 
