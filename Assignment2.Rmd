@@ -11,11 +11,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Install packages 
 ```{r}
-install.packages("carData")
-install.packages("glmnetUtils")
-install.packages("margins")
-install.packages("systemfonts")
-install.packages("kableExtra")
+# install.packages("carData")
+# install.packages("glmnetUtils")
+# install.packages("margins")
+# install.packages("systemfonts")
+# install.packages("kableExtra")
 ```
 
 ## Load packages 
