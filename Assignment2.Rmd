@@ -113,13 +113,13 @@ summary(margins(Post.Logit), variables="fin")
 
   a. fin estimate is at 10% significance level
   
-  b. wexp estimate is at 5% significance level
+  b. Wks estimate is at 1% significance level
   
 2. The AME for fin is -0.0759. 95% CI is [-0.1562, 0.0045]
 
-3. Adaptive Lasso selection does not help with estimation precision for the marginal effect of fin because the 95% CI and significance level are roughly the same . Financial aid does not have a significant effect on re-arrests the estimate is only at 10% significance level and the effect can be 0 since 0 is in the 95% CI.
+3. Adaptive Lasso selection does not help with estimation precision for the marginal effect of fin because the 95% CI and significance level are roughly the same . Financial aid does not have a significant effect on re-arrests because the estimate is only at 10% significance level and the effect can be 0 since 0 is in the 95% CI.
 
-4. The direction is making sense. The probability of re-arrests is rougly 10% (1 - (e^(-0.07))) less if financial aid is provided and doubles if the fraction of time increases by 1 unit an ex-convict was unemployed before re-arrested or until the end of the 52 weeks period, ceteri paribus. 
+4. The direction is making sense. The probability of re-arrests is roughly 10% (1 - (e^(-0.07))) less if financial aid is provided and doubles if the fraction of time an ex-convict was unemployed before re-arrested or until the end of the 52 weeks period increases by 1 unit , ceteri paribus. 
 
 
 
