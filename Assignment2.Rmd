@@ -586,7 +586,7 @@ Answer: The methods reliably select the relevant regressor Xi,1 as the probabili
 
 2. Do they provide reliable control against inclusion of the irrelevant regressors?
 
-Answer: Roughly speaking, method 1, 2, and 3 provide reliable control against inclusion of irrelevant regressors. Method 4 has very high chance of incorporating irrelevant regressors. 
+Answer: Roughly speaking, method 1 provides very reliable control against inclusion of irrelevant regressors. Method 2, 3, and 4 have relatively high chance of incorporating irrelevant regressors. 
 
 
 3. Does their performances depend on σ?
