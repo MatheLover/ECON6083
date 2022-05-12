@@ -1,0 +1,228 @@
+---
+title: "Lab 05: Lasso and IV estimation with Angrist & Krueger (1991) data"
+output: html_document
+---
+
+Required packages:
+
+* "foreign": For importing data from Stata
+* "hdm": For Lasso-based IV estimation
+* "AER": For robust standard errors and IV estimation
+* "kableExtra": For nicer tables
+
+```{r}
+suppressPackageStartupMessages({
+  library(foreign)
+  library(hdm)
+  library(AER)
+  library(kableExtra)
+})
+```
+
+# Research Question
+
+Angrist and Krueger (1991, Quarterly Journal of Economics) "Does Compulsory School Attendance Affect Schooling and Earnings?" are focused on estimation of the return to education. The article is accessible from https://www.jstor.org/stable/2937954
+
+The main equation of interest (that sometimes is called the Mincer equation) is given by
+$$\begin{equation}
+\log(\text{Weekly Wage}_i)=\alpha\cdot (\text{Years of Education}_i)+X_i'\beta+U_i,
+\end{equation}$$
+
+where $X_i$ icludes controls such as
+
+* Race,
+* Marital status,
+* Geographical location,
+* Age.
+* Note that the sample is restricted to men only.
+
+Education is one of the main determining factors for wages. Education is also heavily subsidized by government in many countries, and a key for social mobility and equality. Knowing the return to education is important for policy makers when deciding on education spending. This includes the level of spending as well as prioritization of certain educational programs.
+
+The main issue with the Mincer equation is that it omits the unobserved level of ability. Hence, the residual term $U_i$ includes individual $i$'s ability. While the controls can be viewed as exogenous with respect to the omitted ability, the main variable of interest "Years of Education" is not. This is because individuals choose their level of education according to their ability. As a result, OLS estimation of the Mincer equation is expected to produce inconsistent estimates.
+
+Angrist and Krueger (1991) propose to use IV estimation with the quarter of birth dummies used as the IVs for education. Their main argument for the validity of the IVs is that:
+
+1. The timing of birth (quarter) is unrelated to an individual's ability.
+2. The quarter of birth has no direct effect on the wage.
+3. The quarter of birth is correlated with the level of schooling in the US due to the compulsory schooling law. According to the law, children must continue attending school until they reach the age of 16. After that age, children can drop out without having to finish the current year. As a result, students born in quarter 1 are more likely to drop out without finishing their current year and would tend to have less education as a result.
+
+# Data
+
+The data from Angrist and Krueger (1991) is available from http://economics.mit.edu/faculty/angrist/data1/data/angkru1991 
+
+We downloaded the Stata version of the data set:
+```{r}
+Angrist<-read.dta("NEW7080.dta")
+names(Angrist)
+```
+
+We need to change the names of the variables. The list of the names corresponding to the `v` variables can be found at http://economics.mit.edu/files/5354
+
+```{r}
+colnames(Angrist) <-
+   c(
+  "AGE",
+  "AGEQ", 
+  "v3",
+  "EDUC", #education
+  "ENOCENT", #region dummy
+  "ESOCENT", #region dummy
+  "v7",
+  "v8",
+  "LWKLYWGE", # Log weekly wage
+  "MARRIED", #1 if married
+  "MIDATL", #region dummy
+  "MT", #region dummy
+  "NEWENG", #region dummy
+  "v14","v15",
+  "CENSUS", #70 or #80
+  "v17",
+  "QOB", #quarter of birth
+  "RACE", #1 if black, 0 otherwise
+  "SMSA", #region dummy
+  "SOATL", #region dummy
+  "v22","v23",
+  "WNOCENT", #region dummy
+  "WSOCENT", #region dummy
+  "v26",
+  "YOB" #year of birth
+  )
+
+Angrist$AGESQ=Angrist$AGEQ^2 #squared age
+```
+
+Following the paper, we focus on middle-aged men in the 1980 census:
+```{r}
+Angrist804049<-subset(Angrist, CENSUS==80 & YOB>=40 & YOB<=49)
+```
+The selected individuals were all between the ages of 40-49 at the time of the census. Therefore, they are expected to be finished with their education/studies and still too young to retire. The number of observations in the selected sample is:
+```{r}
+nrow(Angrist804049)
+```
+
+
+# OLS estimation:
+
+We first produce OLS estimates for the Mincer equation.
+
+```{r}
+OLS=lm(LWKLYWGE~EDUC+RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ, data=Angrist804049)
+```
+
+To compute heteroskedasticity robust standard errors, we use the `coeftest()` function from the package "AER".
+
+```{r}
+OLScoef=coeftest(OLS,vcov=vcovHC(OLS, type = "HC0"))
+head(OLScoef,2)
+```
+
+The OLS estimate for the return to education is 0.0521, and its standard error is 0.0003. The corresponding 95% confidence interval is given by:
+```{r}
+OLSCI=round(confint(OLS)[2,],digits=4)
+OLSCI
+```
+
+
+# IV estimation
+
+Next, we compute the IV estimator for the return to schooling using the `ivreg()` command from the package "AER". We use the quarter of birth dummies as the IVs for education. In addition, we generate more IVs by taking interactions between the quarter of birth dummies and the exogenous controls.
+
+```{r}
+TSLS=ivreg(LWKLYWGE~EDUC+RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ 
+           | as.factor(QOB)+RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ
+            + as.factor(QOB)*(RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ)
+,data=Angrist804049)
+```
+
+The estimates and their robust standard errors are below:
+```{r}
+TSLScoef=coeftest(TSLS,vcov=vcovHC(TSLS, type = "HC0"))
+head(TSLScoef,2)
+```
+
+The 2SLS estimates for the return to education are substantially higher than the OLS estimates. The estimated return to education is 0.0988 with the standard error 0.0141. The corresponding 95% confidence interval is:
+```{r}
+TSLSCI=round(confint(TSLS)[2,],digits=4)
+TSLSCI
+```
+
+The 95% 2SLS-based confidence interval for the return to education is substantially wider than that of OLS. This is expected as IV-based estimation typically less precise. At the same time there is no overlap between the 2SLS and OLS confidence intervals. IV estimation suggests a higher return.
+
+
+We can also investigate the first-stage equation:
+
+```{r}
+FirstStage=lm(
+  EDUC~as.factor(QOB)
+  +RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ
+  + as.factor(QOB)*(RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ), 
+  data = Angrist804049)
+coeftest(FirstStage,vcov=vcovHC(FirstStage, type = "HC0"))
+```
+
+There is a large number of parameters with none of the quarter of birth variables or their interactions significant. However, the results are unreliable due to the high-dimensional nature of the equation. 
+
+The corresponding second-stage estimates can also be unreliable.
+
+# Lasso and post-Lasso based 2SLS estimation
+
+In this section, we use Lasso to select the relevant controls and IVs, and then post-Lasso to partial out the effect of controls.
+
+We use the `rlassoIV()` command from the package "hdm". The command performs Lasso selection, post-Lasso partialling out, and post-Lasso IV estimation. To instruct `rlassoIV()` to perform selection of controls and IVs, we use the options `select.X=TRUE` for controls and `select.Z=TRUE` for IVs.
+```{r}
+PLIV=rlassoIV(LWKLYWGE~EDUC+RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ 
+           | as.factor(QOB)+RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ
+            + as.factor(QOB)*(RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ)
+           ,data=Angrist804049,
+           select.X=TRUE,select.Z=TRUE)
+```
+
+The post-Lasso IV estimates for the return to education are given below:
+```{r}
+summary(PLIV)
+```
+The estimated return to education is 0.0628 with the standard error 0.0214. The Lasso-based estimates are between those of OLS and 2SLS without Lasso selection. The corresponding 95% confidence interval is:
+```{r}
+PLIVCI=confint(PLIV)
+```
+
+We can check which controls and IVs were selected for partialling out in the second and first stages.
+
+* The second stage:
+```{r}
+Second=rlasso(LWKLYWGE~RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ,data=Angrist804049)
+which(Second$index==TRUE)
+```
+
+* The first stage:
+```{r}
+First=rlasso(EDUC~as.factor(QOB)+RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ
+          + as.factor(QOB)*(RACE+MARRIED+SMSA+NEWENG+MIDATL+ENOCENT+WNOCENT+SOATL+ESOCENT+WSOCENT+MT+as.factor(YOB)+AGE+AGESQ),data=Angrist804049)
+which(First$index==TRUE)
+```
+Lasso selected only some of the interaction terms for IVs.
+
+# Conclusion 
+
+We first summarize our estimation results.
+```{r}
+table=matrix(0,3,4)
+table[1,]=c(OLScoef[2,1],OLScoef[2,2],OLSCI)
+table[2,]=c(TSLScoef[2,1],TSLScoef[2,2],TSLSCI)
+table[3,]=c(PLIV$coefficients,PLIV$se,PLIVCI)
+colnames(table)=c("Estimate", "Std.Err" ,"2.5%","97.5%")
+rownames(table)=c("OLS based","2SLS based, all IVs","Lasso/post-Lasso IV based")
+
+table %>%
+  kable(digits=4,caption = "Estimates for the return to education") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+### Discussion:
+
+* Whether Lasso-methods are used for selection of IVs and controls, the IV-based methods produce much noisier estimates. 
+* When no selection of IVs and controls is performed, the estimated return to schooling is very large. It is likely that it is due to many IVs bias. 
+* When Lasso/post-Lasso is used for selection of IVs and controls, the estimated return to schooling is only about 1% larger than that based on OLS. Unfortunately, the resulting confidence interval is wide and includes that of the OLS-based estimates.
+* The lower bound of the confidence interval based on Lasso/Post-Lasso suggest that the return to education can be as low as 2.1%. 
+  * This is in contrast to OLS estimates that suggest the return to education is at least 5.2%.
+  * With no selection of IVs, IV estimates imply the lower bound that's at least 7.2%.

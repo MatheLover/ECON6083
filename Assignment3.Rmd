@@ -1,0 +1,59 @@
+---
+title: "Assignment 3"
+author: "JIANG RUI Chan Yat Tin"
+date: '2022-05-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading packages
+```{r}
+# install.packages("stargazer")
+suppressMessages(library(AER))
+library(stargazer)
+data("Affairs")
+?Affairs
+```
+
+```{r}
+Affairs$happy=(Affairs$rating==5)
+Affairs$Cheater=(Affairs$affairs==12)
+Affairs$age2=Affairs$age^2
+Affairs$yearsmarried2=Affairs$yearsmarried^2
+summary(Affairs)
+```
+
+# Part A
+```{r}
+ct <- lm(formula=Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation), data=Affairs)
+ct
+a<-as.data.frame(ct$coefficients)
+
+# Compute heteroskedasticity-robust standard errors and significance levels, where NAME is the name of a regression-type object created by lm() and other similar commands
+ROBUST <- coeftest(ct,vcov=vcovHC(ct, type = "HC0"))
+ROBUST
+happy_coef <- as.character(ROBUST[2,1])
+happy_se <- as.character(ROBUST[2,2])
+
+# report the 90% confidence interval for the estimated coefficient of happy, where ROBUST is the name of the object created by the coeftest() command above
+all_result <- confint(ROBUST, level=0.90)
+all_result
+# select happy result 
+happy <- as.data.frame(all_result[2,])
+happy[2,1]
+happy_90_ci <- paste("[",as.character(happy[1,1]),",",as.character(happy[2,1]),"]",sep="")
+happy_90_ci
+
+# cbind
+table <- cbind(happy_coef,happy_se,happy_90_ci)
+colnames(table) <- c("happy coefficient", "happy SE", "happy 90% CI")
+
+# present result in stargazer command 
+stargazer(table, type="text", title="Summary of Part A")
+```
+
+
+

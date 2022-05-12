@@ -1,0 +1,544 @@
+---
+title: "Lab 06: Tree-based methods"
+output: html_document
+---
+
+# Regression trees with Growth Data
+
+```{r}
+library(tree)
+?tree()
+```
+
+
+```{r}
+library(hdm)
+names(GrowthData)
+```
+
+Let's drop the intercept
+```{r}
+GData=GrowthData[,-2]
+names(GData)
+```
+
+### Regression tree for growth rates
+
+Let's grow a tree
+```{r}
+Gtree=tree(Outcome~.,GData)
+plot(Gtree)
+text(Gtree)
+```
+
+Summary:
+```{r}
+summary(Gtree)
+```
+
+* The initial GDP is dropped! The tree thinks it's not a useful predictor.
+* Only 10 variables out of over 60 used.
+* There are 11 leaves 
+
+##### Pruning
+
+* A tree can have a high variance if there are many leaves and few observations in every leaf.
+* Pruning removes branches with all their leaves to reduce the number of leaves.
+* We can use a penalized SSR to decide how many leaves to keep.
+
+$$\begin{align}
+&\sum_{m=1}^{|T|}\sum_{X_i\in \mathcal{N}_m}(Y_i-\hat Y_{\mathcal{N}_m})^2+\alpha |T|,\quad \text{where}\\
+\hat Y_{\mathcal{N}_m} &=\frac{1}{|\mathcal{N}_m|}\sum_{X_i\in \mathcal{N}_m} Y_i.
+\end{align}$$
+
+* $T$ is the number of leaves.
+* Leaves: $\mathcal{N}_m$, $m=1,\ldots,|T|$.
+* $\hat Y_{\mathcal{N}_m}$ is the average of $Y$'s in the $m$-th leaf.
+* $\alpha$ is the cost complexity parameter.
+
+Cross validation to select the cost complexity parameter.
+```{r}
+set.seed(1,sample.kind = "Rejection")
+cv.Gtree=cv.tree(Gtree)
+plot(cv.Gtree)
+```
+We'll use the smaller tree with the best deviance (SSR):
+```{r}
+Pruned.Gtree=prune.tree(Gtree,best=3)
+plot(Pruned.Gtree)
+text(Pruned.Gtree)
+```
+
+There are only two selected factors:
+
+* Black-market premium
+* Population over 65
+
+```{r}
+names(Pruned.Gtree)
+```
+
+We can see the resulting partition of the sample:
+```{r}
+Pruned.Gtree
+```
+
+`$where` indicates the leaf for each observation
+```{r}
+table(Pruned.Gtree$where)
+```
+
+##### Any relationship to the initial GDP?
+
+We summarize the initial GDP per capita, Outcome, and the number of obs by leaf using:
+
+* `aggregate(x,by,FUN)`
+* `x=` a variable/object to summarize.
+* `by=` a grouping variable (leaf in our case).
+* `FUN=` a function to apply (e.g. "mean", "sum", "length").
+```{r}
+Initial<-aggregate(x=GData$gdpsh465,by=list(Pruned.Gtree$where),FUN="mean")
+Growth<-aggregate(x=GData$Outcome,by=list(Pruned.Gtree$where),FUN="mean")
+Number<-aggregate(x=GData$Outcome,by=list(Pruned.Gtree$where),FUN="length")
+```
+
+Format using the table
+```{r}
+library(kableExtra)
+cbind(Leaf=c("low black market premium","high black market premium, low pop. over 65", "high black market premium, high pop. over 65" ),data.frame(Number,Initial[,2],Growth[,2])) %>%
+  kable(digits=2,
+        col.names=c("Leaf description","Leaf", "Number of countries","Initial GDP per capita", "Growth rate")) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+No clear relationship: 
+
+* The highest and lowest initial GDP correspond to the same rate.
+* The middle initial GDP corresponds to a negative growth rate.
+* This is a forecasting exercise: no structure here.
+
+
+### Out of sample prediction with regression trees
+
+Select 60 observations into a training sample:
+```{r}
+set.seed(6064,sample.kind="Reject")
+Gtrain=sample(1:nrow(GData),60)
+```
+
+Let's fit a tree on the training sample:
+```{r}
+Ttrain=tree(Outcome~. ,GData,subset=Gtrain)
+plot(Ttrain)
+text(Ttrain)
+```
+
+* Note that a different variable is now selected at the root!
+  * Government spending on defense.
+  * Pruning won't eliminate it!
+* Black-market premium is still high up the tree.
+
+Cross validation for pruning:
+```{r}
+set.seed(42,sample.kind="Reject")
+CVTtrain=cv.tree(Ttrain)
+plot(CVTtrain)
+```
+
+We pick again 3 leaves.
+
+Pruning:
+```{r}
+PTtrain=prune.tree(Ttrain,best=3)
+plot(PTtrain)
+text(PTtrain)
+```
+
+* A different tree from the full sample!
+  * High defense spending now predicts high growth rates!
+  * Correlations - no causality.
+* Tree-based methods have a high variance.
+* Dropping some observations can result in a very different tree!
+
+
+
+The outcome variable in the test sample:
+```{r}
+outcome.test=GData$Outcome[-Gtrain]
+```
+
+Predict out of sample:
+```{r}
+predtree=predict(PTtrain,newdata=GData[-Gtrain,])
+```
+
+
+The MSE for the prediction error as a fraction of the variance:
+```{r}
+MSE.out.G.tree<-mean((predtree-outcome.test)^2)/var(outcome.test)
+MSE.out.G.tree
+```
+
+
+##### Let's compare with Lasso
+
+```{r}
+library(glmnet)
+GXtrain<-model.matrix(Outcome~.,data=GData[Gtrain,])[,-1]
+GYtrain<-GData$Outcome[Gtrain]
+set.seed(42,sample.kind="Reject")
+CV.lasso<-cv.glmnet(GXtrain,GYtrain,alpha=1)
+coef(CV.lasso,s=CV.lasso$lambda.min)
+```
+
+* Lasso picked more predictors
+* Black-market premium is also included!
+* Defense spending is also included!
+
+Lasso's out of sample prediction error as a fraction of the variance:
+```{r}
+GXtest<-model.matrix(Outcome~.,data=GData[-Gtrain,])[,-1]
+Glassopred<-predict(CV.lasso,s=CV.lasso$lambda.min,newx=GXtest)
+MSE.out.G.lasso<-mean((Glassopred-outcome.test)^2)/var(outcome.test)
+MSE.out.G.lasso
+```
+
+Summary:
+```{r}
+cbind(MSE.out.G.tree,MSE.out.G.lasso) %>%
+  kable(digits=2,
+        caption="Out of sample MSE for Growth Data",
+        col.names=c("Tree","Lasso")) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+* The tree did better with fewer predictors!
+  * Tree: A more flexible model.
+  * Lasso: Linear-regression-type prediction.
+* We did not do post-Lasso as out goal here is prediction.
+
+---
+
+# Classification trees with Rossi arrests data
+
+```{r}
+library(carData)
+names(Rossi)
+?Rossi
+```
+
+Creating a factor dependent variable:
+```{r}
+Rossi$Arrested<-as.factor(ifelse(Rossi$arrest==1,"yes","no"))
+table(Rossi$Arrested)
+```
+
+Let's construct `Wks`: % of time unemployed before re-arrest or until the end of the period:
+```{r}
+N<-nrow(Rossi)
+Rossi$Weeks_worked<-0
+for (i in 1:N){
+  last_week_col<-Rossi$week[i]+10 #last week before arrest column number
+  for (j in 11:last_week_col){
+  Rossi$Weeks_worked[i]<-Rossi$Weeks_worked[i]+(Rossi[i,j]=="yes")
+  }
+}
+Rossi$Wks<-(Rossi$week-Rossi$Weeks_worked)/Rossi$week
+```
+
+
+```{r}
+RData<-subset(Rossi,select=c(Arrested,fin,age,race,wexp,mar,paro,prio,educ,Wks))
+```
+
+
+
+
+Let's fit a classification tree:
+```{r}
+Atree=tree(Arrested~.,RData)
+plot(Atree)
+text(Atree)
+```
+
+* `Wks` is at the root.
+
+Let's cross validate for pruning:
+```{r}
+set.seed(42,sample.kind="Reject")
+CV.Atree=cv.tree(Atree)
+plot(CV.Atree)
+CV.Atree
+```
+
+Selection of the best tree size:
+```{r}
+RBest_size_ind=which(CV.Atree$dev==min(CV.Atree$dev))
+RBest_size=CV.Atree$size[RBest_size_ind]
+RBest_size
+```
+
+
+
+```{r}
+PAtree=prune.tree(Atree,best=RBest_size)
+plot(PAtree)
+text(PAtree)
+```
+
+* The only factor that matters is % of time unemployed.
+* A simple rule.
+
+Let's compare with Lasso:
+```{r}
+RX=model.matrix(Arrested~.,data=RData)[,-1]
+Ry=RData$Arrested
+CV.Alasso=cv.glmnet(RX,Ry,family="binomial",alpha=1)
+coef(CV.Alasso,s=CV.Alasso$lambda.min)
+```
+* More factors selected
+
+### Out of sample
+
+```{r}
+nrow(RData)
+```
+
+We'll put aside 132 observations for evaluation:
+```{r}
+set.seed(6083,sample.kind="Reject")
+Rtrain<-sample(1:nrow(RData),432-132)
+```
+
+Let's fit on the training sample:
+```{r}
+Atree.train<-tree(Arrested~.,RData[Rtrain,])
+plot(Atree.train)
+text(Atree.train)
+```
+Cross validation:
+```{r}
+set.seed(42,sample.kind="Reject")
+CV.Atree.train<-cv.tree(Atree.train)
+plot(CV.Atree.train)
+```
+
+Best size:
+```{r}
+CV.Atree.train$size[which(CV.Atree.train$dev==min(CV.Atree.train$dev))]
+```
+
+
+* We pick the smallest tree that gives the best fit
+
+```{r}
+PAtree.train<-prune.tree(Atree.train,best=3)
+plot(PAtree.train)
+text(PAtree.train)
+```
+
+Predict out of sample:
+```{r}
+predArrest=predict(PAtree.train,newdata=RData[-Rtrain,],type="class")
+```
+
+* Note the option `type="class"`
+
+Compare with the truth:
+```{r}
+TAB<-table(predicted=predArrest,true=RData$Arrested[-Rtrain])
+TAB
+```
+The error rate:
+```{r}
+Error.prunned<-(TAB[1,2]+TAB[2,1])/sum(TAB)
+Error.prunned
+```
+
+##### Compare with Lasso
+
+```{r}
+AXtrain<-model.matrix(Arrested~.,data=RData[Rtrain,])[,-1]
+Aytrain<-RData$Arrested[Rtrain]
+set.seed(42,sample.kind="Reject")
+ACV.lasso<-cv.glmnet(AXtrain,Aytrain,family="binomial",alpha=1)
+coef(ACV.lasso,s=ACV.lasso$lambda.min)
+```
+Lasso out of sample:
+```{r}
+AXtest<-model.matrix(Arrested~.,data=RData[-Rtrain,])[,-1]
+Alassopred<-predict(ACV.lasso,s=ACV.lasso$lambda.min,newx=AXtest,type="class")
+```
+
+
+Compare with the truth:
+```{r}
+TAB=table(predicted=Alassopred,true=RData$Arrested[-Rtrain])
+TAB
+```
+The error rate:
+```{r}
+Error.lasso<-(TAB[1,2])/sum(TAB)
+Error.lasso
+```
+
+With un-pruned tree:
+```{r}
+predArrest<-predict(Atree.train,newdata=RData[-Rtrain,],type="class")
+TAB<-table(predicted=predArrest,true=RData$Arrested[-Rtrain])
+TAB
+Error.unprunned<-(TAB[1,2]+TAB[2,1])/sum(TAB)
+Error.unprunned
+```
+
+Summary:
+```{r}
+cbind(Error.prunned,Error.unprunned,Error.lasso) %>%
+  kable(digits=2,
+        caption="Out of sample Error (percentage of missclassified)",
+        col.names=c("Prunned tree","Un-prunned tree", "Lasso"),
+        align=c("c","c","c")) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+* Pruning did not help.
+* Sometime Lasso does a better job.
+  * E.g. the data generating process is well approximated by a linear or generalizes linear specification.
+  * All methods have a place.
+  
+# Random forest (and bagging) with growth data
+
+* Bagging: Bootstrap aggregating
+  * Bootstrap sample: Draw randomly with replacement $n$ observations from the sample.
+    * Repeat $B$ times to construct $B$ bootstrap samples/
+  * Grow a tree on each bootstrap sample to have $B$ trees.
+  * Average the trees over the bootstrap samples.
+  * No pruning: Bagging reduces the variance by averaging.
+* Random Forest reduces the variance further.
+  * Bootstrap samples can be highly correlated.
+  * We get more variance reduction from bagging independent trees.
+  * To reduce correlation: at every split consider a random set of regressors, e.g.draw $r$ out of total $p$ regressors with $r=\sqrt{p}$.
+
+* We'll use again `Data` containing our growth data
+
+```{r}
+library(randomForest)
+?randomForest()
+```
+
+Options:
+
+* `mtry=` How many variables to try randomly at each split
+* `ntree=` How many trees to grow
+* You can use defaults
+* `importance=TRUE` to assess the importance of the variables
+
+
+Let's grow a forest:
+```{r}
+set.seed(42,sample.kind="Reject")
+GForest=randomForest(Outcome~.,data=GData,importance=TRUE)
+```
+
+
+To assess the importance of the variables:
+```{r}
+importance(GForest,n.var=10)
+```
+
+Two measures:
+
+* `%IncMSE`: The increase in prediction MSE if the variable is dropped.
+  * Prediction MSE is assessed using out-of-bag observations: observations not in a bootstrap sample.
+* `IncNodePurity`: The change in the impurity of nodes' resulting from splits over the variable. Averaged over all trees. Impurity is measured by the deviance measure.  
+* Picks important regressors, but differently from Lasso.
+
+* Graphically for 12 most important variables:
+```{r}
+varImpPlot(GForest,n.var=12)
+```
+* Initial GDP is low on the list
+  * It's a prediction problem!
+* Black market premium and population over 65 are high on the list.
+
+### Out of sample with RF
+
+Let's grow a RF on the training sample:
+```{r}
+set.seed(42,sample.kind="Reject")
+GFtrain<-randomForest(Outcome~.,data=GData[Gtrain,],importance=TRUE)
+varImpPlot(GFtrain,n.var=12)
+```
+* Different variables, but the black market premium is still at the top.
+* Defense spending has a much lower importance than based on a single tree.
+
+Predict out of sample:
+```{r}
+FOutcome.predict<-predict(GFtrain,newdata=GData[-Gtrain,])
+MSE.out.G.forest<-mean((FOutcome.predict-outcome.test)^2)/var(outcome.test)
+MSE.out.G.forest
+```
+
+Summary:
+```{r}
+cbind(MSE.out.G.tree,MSE.out.G.lasso,MSE.out.G.forest) %>%
+  kable(digits=2,
+        caption="Out of sample MSE for Growth Data",
+        col.names=c("Tree","Lasso","Random Forest"),
+        align=c("c","c","c")) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+* A much lower prediction error. 
+* Improvement of 20% (of the variance) relatively to a single tree.
+
+# RF/bagging with Rossi's arrests data
+
+Let's grow a RF
+```{r}
+set.seed(42,sample.kind="Reject")
+AForest<-randomForest(Arrested~.,data=RData,importance=TRUE)
+varImpPlot(AForest)
+```
+
+* We see again that `Wks` is at the top.
+* There are several other important factors that have not been used in the pruned tree:
+  * `age`, `wexp`, `mar`, `prio`.
+* The importance of `fin` is low.
+
+### Out of sample
+
+RF on the training sample:
+```{r}
+set.seed(42,sample.kind="Reject")
+AForest.train<-randomForest(Arrested~.,data=RData[Rtrain,],importance=TRUE)
+varImpPlot(AForest.train)
+```
+
+* In the training sample, we see again the same factors as being important.
+
+Out of sample
+```{r}
+FpredArrest<-predict(AForest.train,newdata=RData[-Rtrain,],type="response")
+TAB<-table(predicted=FpredArrest,true=RData$Arrested[-Rtrain])
+TAB
+Error.forest<-(TAB[1,2]+TAB[2,1])/sum(TAB)
+Error.forest
+```
+
+Summary:
+```{r}
+cbind(Error.prunned,Error.unprunned,Error.lasso,Error.forest) %>%
+  kable(digits=2,
+        caption="Out of sample Error (percentage of missclassified)",
+        col.names=c("Prunned tree","Un-prunned tree", "Lasso","Random Forest"),
+        align=c("c","c","c","c")) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+* Lasso is still better as a predictor in this example.
+* RF improves relatively to a single tree.
+* RF is often best or second best as a predictor.
