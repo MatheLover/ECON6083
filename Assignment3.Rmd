@@ -42,9 +42,9 @@ happy_se <- as.character(ROBUST[2,2])
 all_result <- confint(ROBUST, level=0.90)
 all_result
 # select happy result 
-happy <- as.data.frame(all_result[2,])
-happy[2,1]
-happy_90_ci <- paste("[",as.character(happy[1,1]),",",as.character(happy[2,1]),"]",sep="")
+happy_df <- as.data.frame(all_result[2,])
+happy_df[2,1]
+happy_90_ci <- paste("[",as.character(happy_df[1,1]),",",as.character(happy_df[2,1]),"]",sep="")
 happy_90_ci
 
 # cbind
@@ -55,5 +55,19 @@ colnames(table) <- c("happy coefficient", "happy SE", "happy 90% CI")
 stargazer(table, type="text", title="Summary of Part A")
 ```
 
+
+Part B
+```{r}
+iv <- ivreg(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation) | yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
+iv
+iv_ROBUST <- coeftest(iv,vcov=vcovHC(iv, type = "HC0"))
+iv_ROBUST
+
+confint(iv_ROBUST,level=0.90)
+
+# First stage
+first_stage <- lm(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation)) , data=Affairs)
+first_stage_robust <- coeftest(first_stage, type="HC0")
+```
 
 
