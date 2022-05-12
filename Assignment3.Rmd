@@ -57,14 +57,17 @@ stargazer(table, type="text", title="Summary of Part A")
 ```
 
 
-Part B
+# Part B
 ```{r}
 iv <- ivreg(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation) | yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
 iv
 iv_ROBUST <- coeftest(iv,vcov=vcovHC(iv, type = "HC0"))
 iv_ROBUST
+iv_ROBUST[2,1]
+iv_ROBUST[2,2]
 
-confint(iv_ROBUST,level=0.90)
+happy_df_b <- as.data.frame(confint(iv_ROBUST,level=0.90)[2,])
+happy_90_ci_b <- paste("[",as.character(happy_df_b[1,1]),",",as.character(happy_df_b[2,1]),"]",sep="")
 
 # First stage
 first_stage <- lm(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation)) , data=Affairs)
@@ -72,15 +75,18 @@ first_stage_robust <- coeftest(first_stage, type="HC0")
 first_stage_robust
 ```
 
-Part c
+# Part c
 ```{r}
 lasso.iv <- rlassoIV(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation) | yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs,select.X=TRUE,select.Z=TRUE)
 
 # post lasso estimates
 summary(lasso.iv)
+lasso.iv$coefficients
+lasso.iv$se
 
 # 90% CI
 lasso.iv.ci <- confint(lasso.iv,level=0.90)
+happy_90_ci_c <- paste("[",as.character(-0.8310902),",",as.character(-0.1418015),"]",sep="")
 
 # Second stage
 Second <- rlasso(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation),data=Affairs )
@@ -90,6 +96,16 @@ second_var
 # First stage
 First <- rlasso(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
 which(First$index==TRUE)
+```
+
+Part d
+```{r}
+happy_coef_ptd <- cbind(happy_coef, iv_ROBUST[2,1], lasso.iv$coefficients)
+happy_se_ptd <- cbind(happy_se, iv_ROBUST[2,2], lasso.iv$se)
+happy_ci_ptd <- cbind(happy_90_ci,happy_90_ci_b,happy_90_ci_c) 
+happy_summary <- rbind(happy_coef_ptd, happy_se_ptd, happy_ci_ptd)
+colnames(happy_summary) <- c("Part A", "Part B", "Part C")
+rownames(happy_summary) <- c("Happy Coefficient", "SE", "90% CI")
 ```
 
 
