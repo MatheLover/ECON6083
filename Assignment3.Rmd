@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # install.packages("stargazer")
 suppressMessages(library(AER))
 library(stargazer)
+library(hdm)
 data("Affairs")
 ?Affairs
 ```
@@ -68,6 +69,27 @@ confint(iv_ROBUST,level=0.90)
 # First stage
 first_stage <- lm(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation)) , data=Affairs)
 first_stage_robust <- coeftest(first_stage, type="HC0")
+first_stage_robust
+```
+
+Part c
+```{r}
+lasso.iv <- rlassoIV(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation) | yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs,select.X=TRUE,select.Z=TRUE)
+
+# post lasso estimates
+summary(lasso.iv)
+
+# 90% CI
+lasso.iv.ci <- confint(lasso.iv,level=0.90)
+
+# Second stage
+Second <- rlasso(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation),data=Affairs )
+second_var <- which(Second$index==TRUE)
+second_var
+
+# First stage
+First <- rlasso(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
+which(First$index==TRUE)
 ```
 
 
