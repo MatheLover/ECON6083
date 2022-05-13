@@ -30,37 +30,36 @@ summary(Affairs)
 # Part A
 ```{r}
 ct <- lm(formula=Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation), data=Affairs)
-ct
 a<-as.data.frame(ct$coefficients)
 
 # Compute heteroskedasticity-robust standard errors and significance levels, where NAME is the name of a regression-type object created by lm() and other similar commands
 ROBUST <- coeftest(ct,vcov=vcovHC(ct, type = "HC0"))
-ROBUST
+stargazer(ROBUST, type="text",title="Part A: Report the estimated coefficients, their heteroskedasticity-robust standard errors, and significance levels")
 happy_coef <- as.character(ROBUST[2,1])
 happy_se <- as.character(ROBUST[2,2])
 
 # report the 90% confidence interval for the estimated coefficient of happy, where ROBUST is the name of the object created by the coeftest() command above
 all_result <- confint(ROBUST, level=0.90)
-all_result
+
 # select happy result 
 happy_df <- as.data.frame(all_result[2,])
-happy_df[2,1]
+# happy_df[2,1]
 happy_90_ci <- paste("[",as.character(happy_df[1,1]),",",as.character(happy_df[2,1]),"]",sep="")
-happy_90_ci
+# happy_90_ci
 
 # cbind
 table <- cbind(happy_coef,happy_se,happy_90_ci)
 colnames(table) <- c("happy coefficient", "happy SE", "happy 90% CI")
 
 # present result in stargazer command 
-stargazer(table, type="text", title="Summary of Part A")
+stargazer(table, type="text", title="Part A: Summary of happy coefficients")
 ```
 
 1. What is the estimated effect of happy on the probability of having regular affairs?
 Ans: Being very satisfied with marriages is expected to reduce the probability of having regular affairs by 0.0315.
 
 2. Is the estimated effect significant?
-Ans: Since the p-value is 0.090841 > 0.05, the estimated effect is statistically insignificant. 
+Ans: Since the p-value is 0.090841 < 0.10, the estimated effect is statistically significant at 10% significance level. 
 
 3. Does the sign of estimated effect makes sense?
 Ans: Yes. If you have a happy marriage, you are less likely to find partners outside and thus have affairs.
@@ -71,21 +70,53 @@ Ans: From my perspective, the magnitude is drastically less than expected becaus
 
 # Part B
 ```{r}
+# IV
 iv <- ivreg(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation) | yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
-iv
 iv_ROBUST <- coeftest(iv,vcov=vcovHC(iv, type = "HC0"))
-iv_ROBUST
-iv_ROBUST[2,1]
-iv_ROBUST[2,2]
+# coefficient
+# iv_ROBUST[2,1]
+# SE
+# iv_ROBUST[2,2]
 
+# IV result presentation
+stargazer(iv_ROBUST, type="text",title="Part B: Report the IV estimates for the coefficient on happy and its heteroskedasticity-robust standard errors and significance levels")
+
+# CI
 happy_df_b <- as.data.frame(confint(iv_ROBUST,level=0.90)[2,])
 happy_90_ci_b <- paste("[",as.character(happy_df_b[1,1]),",",as.character(happy_df_b[2,1]),"]",sep="")
+stargazer(happy_90_ci_b, type="text",title="Part B: Report the heteroskedasticity-robust IV-based 90% confidence interval for the coefficient of happy")
 
 # First stage
 first_stage <- lm(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation)) , data=Affairs)
 first_stage_robust <- coeftest(first_stage, type="HC0")
-first_stage_robust
+# first_stage_robust
+stargazer(first_stage_robust,type="text",title="Part B: Report the first stage estimates with their heteroskedasticity-robust standard errors and significance levels" )
 ```
+1. Report the IV estimates for the coefficient on happy and its heteroskedasticity-robust standard errors and significance levels. 
+
+Ans: The IV estimates are shown in the 1st table.  
+
+
+2. Report the heteroskedasticity-robust IV-based 90% confidence interval for the coefficient of happy. 
+
+Ans: The heteroskedasticity-robust IV-based 90% confidence interval is [-0.214886041453851,0.117377553751838].  
+
+3. Comment on the IV estimates of the magnitude of the effect.
+
+Ans: The IV estimates of the magnitude of the effect is -0.04875424, which is still much less than expected.
+
+4. Discuss the significance of IV estimates.
+
+Ans: Age, age2, education, and some other factor variables such as religion and occupation are statistically significant. Other variables are statistically insignificant.  
+
+5. Compare with OLS estimates in part A.
+
+Ans: Compared above, the magnitude of estimate on happy increases a little bit.   
+
+6. Report the first stage estimates with their heteroskedasticity-robust standard errors and significance levels. Do the IVs appear to be related to happy?
+
+Ans: The first stage estimates are shown as the above table. Only some IVs appear to be related to happy. Many other estimates are statitically insignificant.    
+
 
 # Part c
 ```{r}
@@ -100,6 +131,12 @@ lasso.iv$se
 lasso.iv.ci <- confint(lasso.iv,level=0.90)
 happy_90_ci_c <- paste("[",as.character(-0.8310902),",",as.character(-0.1418015),"]",sep="")
 
+# Present result 
+post_lasso_table <- cbind(lasso.iv$coefficients,happy_90_ci_c)
+colnames(post_lasso_table) <- c("Estimate","90% Confidence Interval")
+rownames(post_lasso_table) <- "happy"
+stargazer(post_lasso_table, type="text", title="Report the post-Lasso IV-based estimates for the effect of happy on the probability of regular affairs and the 90% confidence interval for the estimated post-Lasso effect of happy")
+
 # Second stage
 Second <- rlasso(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation),data=Affairs )
 second_var <- which(Second$index==TRUE)
@@ -109,15 +146,43 @@ second_var
 First <- rlasso(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
 which(First$index==TRUE)
 ```
+1. Report the post-Lasso IV-based estimates for the effect of happy on the probability of regular affairs.
 
-Part d
+Ans: The result is as above. 
+
+2. Report the 90% confidence interval for the estimated post-Lasso effect of happy
+
+Ans: The result is as above. 
+
+3. Use rlasso() to check which controls are useful for predicting Cheater
+
+Ans: Occupation is useful for predicting Cheater.
+
+4. Use rlasso() to check which IVs and controls are useful for predicting happy (the first stage)
+
+Ans: yearsmarried, childrenyes, as.factor(occupation), yearsmarried:childrenyes, yearsmarried2:as.factor(religiousness),  and yearsmarried2:as.factor(occupation) are IVs and controls useful for predicting happy.
+
+
+
+# Part d
 ```{r}
 happy_coef_ptd <- cbind(happy_coef, iv_ROBUST[2,1], lasso.iv$coefficients)
 happy_se_ptd <- cbind(happy_se, iv_ROBUST[2,2], lasso.iv$se)
 happy_ci_ptd <- cbind(happy_90_ci,happy_90_ci_b,happy_90_ci_c) 
 happy_summary <- rbind(happy_coef_ptd, happy_se_ptd, happy_ci_ptd)
-colnames(happy_summary) <- c("Part A", "Part B", "Part C")
+colnames(happy_summary) <- c("Part A OLS ", "Part B IV", "Part C RLASSO IV")
 rownames(happy_summary) <- c("Happy Coefficient", "SE", "90% CI")
+stargazer(happy_summary, type="text",title="Results for the effect of happy on Cheater from parts A-C")
 ```
 
+1. Compare and discuss the three sets of results.
 
+Ans: Part b and part c have much higher SE, suggesting that IV-based methods produce much noisier estimates. When we perform post-lasso, the coefficient on happy increases significantly in absolute value. Yet the 90% CI for RLASSO IV is much wider compared that of the other two parts.   
+
+2. Which estimates make most sense?
+
+Ans: Part C as happy should not accounting for such minor effects on the probability of having affairs as in part a and part b, though the high SE is the tradeoff we have to admit.  
+
+3. Are Lasso/post-Lasso methods useful here for improving estimation results?
+
+Ans: Yes. The estimates increase significantly in scale. Yet, standard error as well as wider CI are the tradeoffs.
