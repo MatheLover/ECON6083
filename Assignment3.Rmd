@@ -56,6 +56,18 @@ colnames(table) <- c("happy coefficient", "happy SE", "happy 90% CI")
 stargazer(table, type="text", title="Summary of Part A")
 ```
 
+1. What is the estimated effect of happy on the probability of having regular affairs?
+Ans: Being very satisfied with marriages is expected to reduce the probability of having regular affairs by 0.0315.
+
+2. Is the estimated effect significant?
+Ans: Since the p-value is 0.090841 > 0.05, the estimated effect is statistically insignificant. 
+
+3. Does the sign of estimated effect makes sense?
+Ans: Yes. If you have a happy marriage, you are less likely to find partners outside and thus have affairs.
+
+
+4. Comment on the magnitude of the effect: does it make sense?
+Ans: From my perspective, the magnitude is drastically less than expected because marriage satisfaction should be one of the major factors dissuading people from having affairs.  
 
 # Part B
 ```{r}
