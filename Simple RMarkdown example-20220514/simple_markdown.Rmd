@@ -1,0 +1,56 @@
+---
+title: "Simple R commands"
+output: html_document
+---
+
+# Simple R commands
+
+### Create a vector:
+```{r}
+x<-c(1,2,-20)
+x
+```
+
+### Sum of the elements
+```{r}
+sum(x)
+```
+
+### Markdown basics:
+
+A list:
+
+- Headers `#`, `##`, ...
+- **Bold**
+- *Italics*
+- include inline R code: The sum of `x` is `r sum(x)`
+- Type LaTeX: $Y= X\beta +U$
+- Displayed LaTeX equations:
+\begin{align}
+Y &= X\beta +U
+\end{align}
+
+A numbered list:
+
+1. text
+2. text
+
+A nested list:
+
+- text
+  - text
+  - text
+- text
+
+
+
+#### More R code:
+```{r}
+X=rnorm(5)
+X
+```
+
+
+### Can go back and re-run, change, edit cells!
+
+---

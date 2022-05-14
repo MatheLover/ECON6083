@@ -1,0 +1,504 @@
+---
+title: "Lab 07: Causal methods"
+output: html_document
+---
+
+Required packages:
+
+* `carData`: for the Rossi data set on arrests and financial aid.
+* `AER`: for robust standard errors.
+* `boot`: for bootstrapping.
+* `causalweight`: for the IPW ATE estimator.
+* `devtools`: for installation of packages from github repositories.
+* `causalTree`: for causal tree methods.
+* `grf`: for causal forests.
+* `hdm`: for Lasso
+* `kableExtra`: for nicer tables.
+
+```{r, warning=FALSE, message=FALSE}
+library(carData)
+library(stargazer)
+library(AER)
+library(knitr)
+library(kableExtra)
+```
+
+# Research question
+
+Does receiving financial aid reduces the probability of a convict being re-arrested after a release? 
+
+One can argue that receiving financial aid can help released convicts to focus on finding jobs and re-integrating. One can also argue that it reduces incentives to commit crimes.
+
+It is important to assess if financial aid helps with re-integration into the society. It is also important to assess the magnitude of the effect as financial aid programs can be costly to tax-payers. If such programs are not effective, we should spend the funds on other more effective rehabilitation programs.
+
+If the effect of the program can be heterogeneous, it is important to identify sub-populations where the program is more effective. This would allow policy makers to target released convicts for whom the effect is expected to be more substantial.
+
+# Data set preparations:
+
+Let's construct `Wks`: % of time unemployed before re-arrest or until the end of the period:
+```{r}
+N<-nrow(Rossi)
+Rossi$Weeks_worked<-0
+for (i in 1:N){
+  last_week_col<-Rossi$week[i]+10 #last week before arrest column number
+  for (j in 11:last_week_col){
+  Rossi$Weeks_worked[i]<-Rossi$Weeks_worked[i]+(Rossi[i,j]=="yes")
+  }
+}
+Rossi$Wks<-(Rossi$week-Rossi$Weeks_worked)/Rossi$week
+```
+
+Creat a 0/1 treatment variable:
+```{r}
+Rossi$D<-(Rossi$fin=="yes")+0
+```
+
+Education is a factor:
+```{r,  message=F}
+Rossi$Grades<-" "
+Rossi$Grades[Rossi$educ==2]<-"_6"
+Rossi$Grades[Rossi$educ==3]<-"7_9"
+Rossi$Grades[Rossi$educ==4]<-"10_11"
+Rossi$Grades[Rossi$educ==5]<-"12"
+Rossi$Grades[Rossi$educ==6]<-"College"
+```
+
+
+The data set:
+```{r}
+RData<-subset(Rossi,select=c(arrest,D,age,race,wexp,mar,paro,prio,Wks))
+RData$educ<-as.factor(Rossi$Grades)
+```
+
+# ATE
+
+The treatment was randomly assigned. We should be able to estimate ATE by just regressing `arrest` against `D`.
+
+OLS of `arrest` against D:
+```{r, warning=FALSE}
+ATEsimple<-lm(arrest~D,data=RData)
+Simple<-coeftest(ATEsimple,vcov=vcovHC(ATEsimple, type = "HC0"))
+stargazer(Simple[2,],type="text")
+```
+
+* The estimated ATE: 8.3% reduction in probability of being re-arrested if on financial aid.
+* The result is significant at 5%.
+* The 95% confidence interval (CI):
+```{r}
+SimpleCI<-confint(Simple)[2,]
+stargazer(SimpleCI,type="text")
+```
+* The ATE can be as large as 16.6% and as small as 0.03%.
+
+
+# Non-parametric IPW ATE estimator 
+
+Since the treatment is randomized, there are not supposed to be controls explaining the treatment assignment. Let's check using the logit model:
+```{r, warning=F}
+logit<-glm(D~(age+race+wexp+mar+paro+prio+educ+Wks)^2,data=RData,family = binomial(link = "logit"))
+stargazer(coeftest(logit,vcov=vcovHC(logit,type="HC0")),type="text")
+```
+
+* We cannot rely on individual p-values: many hypotheses testing problem.
+* However, it is possible that treatment assignment is not completely random:
+  * Convicts with some college seems to be more likely to be in the program.
+  * Non-black convicts released on parole might be more likely to be in the program.
+  * Convicts with more than one conviction released on parole might be less likely to be treated.
+
+  
+Let's check if any variables survive Lasso selection:
+```{r}
+library(hdm)
+mod.lasso<-rlasso(D~(age+race+wexp+mar+paro+prio+educ+Wks)^2,data=RData)
+which(mod.lasso$index==TRUE)
+```
+
+* An intersection of `raceother` and `educCollege` dummies predicts the treatment assignment.
+
+
+We therefore also compute the non-parametric IPW estimator of ATE.
+
+* We will estimate the propensity score by logit as above.
+* We keep only education and race to explain treatment assignment
+* We use the `causalweight` package:
+```{r, warning=FALSE, message=FALSE}
+library(causalweight)
+X<-model.matrix(D~(race +educ)^2,data=RData)[,-1]
+Y<-RData$arrest
+D<-RData$D
+output<-treatweight(d=D,y=Y,x=X,logit=TRUE,trim=0.05)
+cat("ATE: ",round(output$effect,3),", standard error: ",
+        round(output$se,3), ", p-value: ",round(output$pval,3))
+```
+
+* The IPW-ATE-estimated effect is `r round(output$effect*100,1)`% a  reduction in the probability of re-arrest.
+* The standard error is `r round(output$se*100,1)`% - significant result at 5% significance.
+
+
+
+
+
+# Tree-based estimation of Conditional ATEs (CATEs)
+
+We need to install the "causalTree" package from Susan Athey's github repository:
+```{r, warning=FALSE, message=FALSE}
+library(devtools)
+install_github('susanathey/causalTree')
+library(causalTree)
+```
+
+```{r}
+?causalTree()
+```
+
+We'll use first the `causalTree()` function with the following parameters:
+
+* `split.Rule="CT"`: Causal tree splitting rule (treatment effects based).
+* `split.Honest = FALSE`: use all observations for both splitting and CATE estimation.
+* `cv.Honest = FALSE`: Similar to the above.
+* `minsize=30`: The minimum number of treated and control cases in a leaf in order to be split.
+```{r}
+set.seed(6064,sample.kind="Reject")
+ACT=causalTree(arrest~.,
+               data=RData,
+               treatment=RData$D,
+               split.Rule="CT",
+               split.Honest = F,
+               cv.option="CT",
+               cv.Honest = F,
+               minsize=30
+               )
+rpart.plot(ACT,roundint = F)
+```
+
+Complexity table:
+```{r}
+printcp(ACT)
+```
+
+* `CP`: the complexity cost parameter value.
+* `xerror`: the cross-validation error.
+* `nsplit`: the number of splits.
+  * The size of the tree is `nsplit+1`.
+
+```{r}
+plotcp(ACT)
+```
+
+Selecting the optimal complexity parameter:
+```{r}
+ID=which.min(ACT$cp[, "xerror"])
+Opt_cp=ACT$cp[ID,1]
+c(ID,Opt_cp)
+```
+
+Pruning:
+```{r}
+ACT_prune=prune(ACT,cp=Opt_cp)
+rpart.plot(ACT_prune)
+```
+
+* We are back to the simple ATE.
+* Causal tree cannot detect heterogeneity
+
+### With `honest.causalTree()`
+
+```{r}
+?honest.causalTree()
+```
+
+
+We split the sample into: 
+
+* The training sample for growing the tree.
+* The estimation sample for estimating the ATE in the leafs.
+```{r}
+N<-nrow(RData)
+set.seed(6064,sample.kind="Reject")
+train<-sample(1:N,N/2)
+RData_train<-RData[train,]
+RData_est<-RData[-train,]
+```
+
+Honest tree:
+```{r}
+set.seed(6064,sample.kind="Reject")
+ACT_honest<-honest.causalTree(arrest~.,
+                             data=RData_train,
+                             treatment=RData_train$D,
+                             split.Rule="CT",
+                             split.Honest = TRUE,
+                             cv.option="CT",
+                             cv.Honest = TRUE,
+                             minsize=30,
+                             est_data=RData_est,
+                             est_treatment=RData_est$D
+                             )
+rpart.plot(ACT_honest)
+```
+
+```{r}
+printcp(ACT_honest)
+```
+
+Pruning:
+
+Selecting the optimal complexity parameter:
+```{r}
+ID<-which.min(ACT_honest$cp[, "xerror"])
+Opt_cp<-ACT_honest$cp[ID,1]
+
+ACT_honest_prune=prune(ACT_honest,cp=Opt_cp)
+rpart.plot(ACT_honest_prune)
+```
+
+We can now split the estimation sample according to the rule for the leaves:
+```{r}
+RData_CATE<-RData_est
+RData_CATE$leaf<-as.factor(round(predict(ACT_honest_prune,newdata=RData_CATE),digits=3))
+table(RData_CATE$leaf)
+```
+
+* We have two groups:
+  * CATE = -0.136.
+  * CATE = -0.006.
+* It corresponds to the split according to `Wks>=0.86`.
+
+Since the sample splitting is independent of the observations used to estimate the effect, we can now use an OLS regression with leaf dummies to obtain the standard errors.
+
+* We include both dummies: Use `-1` to drop the intercept.
+* We also drop `D` and only keep the interactions: 
+  * This is equivalent to running the regression `arres~D` in each leaf separately.
+
+```{r}
+CATE<-lm(arrest~as.factor(leaf)+D*as.factor(leaf)-1-D,data=RData_CATE)
+stargazer(coeftest(CATE,vcov=vcovHC(CATE,type="HC0"))[3:4,],type="text")
+```
+
+* Note that the slope estimates on the interaction terms are identical to the leaf averages in the causal tree.
+
+Conclusion:
+
+* For those who holds employment at least 14% of the time, there is a significant effect of 13.6%
+* The 95% CI for the group that holds employment:
+```{r}
+CATE_robust<-coeftest(CATE,vcov=vcovHC(CATE,type="HC0"))
+confint(CATE_robust)[3,]
+```
+* The effect is more substantial than the estimated ATE.
+* The ATE is a weighted average of the CATEs for the two sub-populations.
+* Since the group that cannot hold employment has a near zero effect, the ATE is lower than the CATE for the group that holds employment.
+* The program should condition continuation of the financial aid on some minimal employment requirements.
+* Note however that the results are sensitive to how data is split.
+
+# Estimation of CATEs with causal forests
+
+```{r}
+library(grf)
+?causal_forest
+```
+
+##### Estimating causal forest:
+
+* `X=` Controls/Covariates explaining treatment assignment.
+* `Y=` The outcome variables.
+* `W=` The treatment variable.
+```{r}
+X<-model.matrix(D~age+race+mar+paro+prio+educ+Wks,data=RData)[,-1]
+CF<-causal_forest(X=X,Y=RData$arrest,W=RData$D,seed = 6064)
+```
+
+##### CATE for `age>=27` and `age<27`:
+```{r}
+average_treatment_effect(CF,target.sample = "all",subset=(RData$age>=27))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$age<27))
+```
+
+* The program is effective for older convicts.
+
+##### CATE for `Wks>=0.85` and `Wks$<0.85`:
+```{r}
+average_treatment_effect(CF,target.sample = "all",subset=(RData$Wks>=0.85))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$Wks<0.85))
+```
+
+* There seems to be a stronger effect for those who are less employed:
+```{r}
+CATE_Wks<-average_treatment_effect(CF,target.sample = "all",subset=(RData$Wks>=0.85))
+Estimate=CATE_Wks[1]
+Std.err=CATE_Wks[2]
+T=abs(Estimate/Std.err)
+pvalue=(2*(1-pnorm(T)))
+cat("CATE for  Wks>0.85:  ",round(Estimate,digits=3), "  Std.err:  ",round(Std.err,digits=3), "  p-value:  ",round(pvalue,digits=3))
+
+```
+
+
+##### CATEs by `race`
+```{r}
+average_treatment_effect(CF,target.sample = "all",subset=(RData$race=="black"))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$race=="other"))
+```
+
+* `race` does not seem to be important
+
+##### CATEs by `paro`
+```{r}
+average_treatment_effect(CF,target.sample = "all",subset=(RData$paro=="yes"))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$paro=="no"))
+```
+
+* There seems to be a stronger effect for those who are not on parole.
+```{r}
+CATE_paro<-average_treatment_effect(CF,target.sample = "all",subset=(RData$paro=="no"))
+Estimate<-CATE_paro[1]
+Std.err<-CATE_paro[2]
+T<-abs(Estimate/Std.err)
+pvalue<-(2*(1-pnorm(T)))
+cat("CATE for not on parole  :  ",round(Estimate,digits=3), "  Std.err:  ",round(Std.err,digits=3), "  p-value:  ",round(pvalue,digits=3))
+
+```
+
+##### CATE by prior convictions:
+```{r}
+average_treatment_effect(CF,target.sample = "all",subset=(RData$prio>1))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$prio<=1))
+```
+
+* There seems to be a stronger effect for those with multiple prior convictions:
+```{r}
+CATE_prio<-average_treatment_effect(CF,target.sample = "all",subset=(RData$prio>1))
+Estimate<-CATE_prio[1]
+Std.err<-CATE_prio[2]
+T<-abs(Estimate/Std.err)
+pvalue<-(2*(1-pnorm(T)))
+cat("CATE for prio>1  :  ",round(Estimate,digits=3), "  Std.err:  ",round(Std.err,digits=3), "  p-value:  ",round(pvalue,digits=3))
+
+```
+
+##### CATEs by education:
+```{r}
+table(RData$educ)
+```
+
+```{r}
+average_treatment_effect(CF,target.sample = "all",subset=(RData$educ=="_6"))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$educ=="7_9"))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$educ=="10_11"))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$educ=="12"))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$educ=="College"))
+
+```
+
+* There is no significant effect by education.
+
+
+##### CATE by marital status:
+```{r}
+average_treatment_effect(CF,target.sample = "all",subset=(RData$mar=="married"))
+average_treatment_effect(CF,target.sample = "all",subset=(RData$mar=="not married"))
+```
+
+* For not married:
+```{r}
+CATE_mar<-average_treatment_effect(CF,target.sample = "all",subset=(RData$mar=="not married"))
+Estimate<-CATE_mar[1]
+Std.err<-CATE_mar[2]
+T<-abs(Estimate/Std.err)
+pvalue<-(2*(1-pnorm(T)))
+cat("CATE for not married  :  ",round(Estimate,digits=3), "  Std.err:  ",round(Std.err,digits=3), "  p-value:  ",round(pvalue,digits=3))
+```
+
+* The program might be more effective for single convicts.
+
+
+We can combine several conditions:
+```{r}
+CATE_mult<-average_treatment_effect(CF,target.sample = "all",subset=
+        (
+          RData$age>=27
+          & RData$mar=="not married" 
+          & RData$prio>1
+          )
+        )
+
+
+Estimate<-CATE_mult[1]
+Std.err<-CATE_mult[2]
+T<-abs(Estimate/Std.err)
+pvalue<-(2*(1-pnorm(T)))
+cat("CATE for age>=27, not married, with prio>1  :  ",round(Estimate,digits=3), "  Std.err:  ",round(Std.err,digits=3), "  p-value:  ",round(pvalue,digits=3))
+```
+
+The 95% CI:
+```{r}
+CI_mult<-c(Estimate-1.96*Std.err,Estimate+1.96*Std.err)
+names(CI_mult)<-c("2.5%","97.5%")
+round(CI_mult,digits=3)
+```
+
+We can conclude that the program is more effective for older single convicts with multiple prior convictions.
+
+* They are less likely to have a support network.
+* It is harder for them to find employment.
+
+
+##### We should rely on the variables' importance:
+
+* There are many ways to condition: Which variables should we use for conditioning?
+* `variable_importance()` computes the number of times each variable was used for splitting.
+
+```{r}
+CF_var_imp<-variable_importance(CF)
+selected.vars <- which(CF_var_imp / mean(CF_var_imp) > 0.2)
+
+Importance=round(CF_var_imp[selected.vars],digits=3)
+names(Importance)<-colnames(X)[selected.vars]
+sort(Importance, decreasing=TRUE)
+```
+
+CATE by the three most important variables:
+```{r}
+CATE_import<-average_treatment_effect(CF,target.sample = "all",subset=
+        (
+          RData$Wks<0.40
+          & RData$age>=27
+          & RData$prio>1
+          )
+        )
+Estimate<-CATE_import[1]
+Std.err<-CATE_import[2]
+T<-abs(Estimate/Std.err)
+pvalue<-(2*(1-pnorm(T)))
+cat("CATE for Wks<0.4, age>=27, with prio>1  :  ",round(Estimate,digits=3), "  Std.err:  ",round(Std.err,digits=3), "  p-value:  ",round(pvalue,digits=3))
+```
+
+Confidence interval:
+```{r}
+CI_import<-c(Estimate-1.96*Std.err,Estimate+1.96*Std.err)
+CI_import
+```
+
+
+# Conclusion
+
+```{r}
+table<-matrix(0,2,4)
+table[1,]<-c(Simple[2,1],Simple[2,2],SimpleCI)
+table[2,]<-c(Estimate,Std.err,CI_import)
+colnames(table)<-c("Estimate", "Std.Err" ,"2.5% CI","97.5% CI")
+rownames(table)<-c("ATE","CATE with Wks<0.4, age>=27, prio>1")
+
+table %>%
+  kable(digits=2,
+        caption = "Treatment effects of the financial aid program for released convicts") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+
+* The program is more effective for older convicts with multiple prior convictions employed at least 60% of the time.
+* The program can be highly effective: up to 65% reduction in the probability of re-arrest for properly chosen subjects who keep employment, are older, and have multiple prior convictions.
+* The lower bound on the effect is as higher than the estimated ATE.
+* Note the importance of conditioning on several variables.
+  * We getting a different CATE effect for `Wks` when combining with other conditions.
+* Causal forests are very helpful in this context as they allow us to identify the sub-population that benefits the most from the program.

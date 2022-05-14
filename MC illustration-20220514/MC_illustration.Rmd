@@ -1,0 +1,325 @@
+---
+title: "MC illustration"
+output: html_document
+---
+
+Required packages:
+
+- `foreach`: for loops.
+- `kableExtra`: for nicer tables.
+- `doParallel` and `doRNG` for parallel computing.
+
+This document illustrates Monte Carlo (MC) simulations. We consider a regression model with a potentially endogenous regressor. We will use MC simulations to simulate the bias of the OLS estimator under endogeneity, and see how it changes with the strength of endogeneity.
+
+# Data Generating Process (DGP)
+
+The model:
+
+\begin{align}
+Y_i & = \alpha D_i +X_i'\beta+U_i,\\
+D_i & = X_i'\pi + V_i,\\
+U_i &= \rho V_i+\epsilon_i,\\
+X_{i,1},\ldots,X_{i,k} &\sim\;\text{iid}\; N(0,1),\\
+V_i &\sim N(0,1),\\
+\epsilon_i &\sim N(0,1).
+\end{align}
+
+Note that there are no instruments in this model. We will use the following parameters values:
+
+- $\alpha=1$,
+- $k=2$,
+- $\beta=(\beta_1,\beta_2)'=(1,1)'$,
+- $\pi=(\pi_1,\pi_2)'=(1,1)'$.
+
+In this mode, $\rho$ determines the strength of endogeneity of $D_i$. For $\rho=0$, $D_i$ is exogenous, and it is endegenous for $\rho\ne 0$. We will use the following values for $\rho$:
+
+- $\rho\in \{-3,-2,-1,0,1,2,3\}$.
+
+The sample size:
+
+- $n=100$.
+
+### R custom function to simulate data
+
+Since all other parameters except for $\rho$ are not going to vary in this exercise, we define the DGP function as a function of `rho` only.
+
+```{r}
+MyData<-function(rho){
+  n<-100
+  k<-2
+  X<-matrix(rnorm(n*k),ncol=k)
+  V<-rnorm(n)
+  epsilon<-rnorm(n)
+  
+  #D<-X[,1]+X[,2]+V
+  D<-rowSums(X)+V
+  
+  U<-rho*V+epsilon
+  
+  #Y<-D+X[,1]+X[,2]+U
+  Y<-D+rowSums(X)+U
+  
+  return(list(Y=Y,D=D,X=X))
+}
+```
+
+Note that the function outputs data as a list. Let's generate data with $\rho=0.5$:
+```{r}
+Data<-MyData(0)
+names(Data)
+```
+
+To access the generated `Y` and `X`, you can use:
+
+- `Data$Y`.
+- `Data$D`.
+- `Data$X`.
+
+```{r}
+summary(Data$Y)
+```
+
+
+```{r}
+summary(Data$D)
+```
+
+```{r}
+summary(Data$X)
+```
+
+Note that `X` is a matrix, and `Y` and `D` are vectors:
+```{r}
+dim(Data$X)
+```
+
+```{r}
+length(Data$Y)
+```
+
+```{r}
+length(Data$D)
+```
+
+
+# Function to simulate the bias
+
+
+### Regression with the simulated data
+
+To run a regression with the simulated data:
+```{r}
+Reg<-lm(Data$Y~Data$D+Data$X)
+summary(Reg)
+```
+
+We can access the coefficient on $D_i$ using:
+```{r}
+coef(summary(Reg))[2,1]
+```
+
+### Function for the simulated bias 
+
+Next, we define a custom function that simulates the bias of the OLS estimator. We will supply two arguments in this case: 
+
+- The number of MC repetitions `R`.
+- The value of $\rho$. 
+
+It is best to use a small `R` when writing and debugging the code, and then switch to a larger `R` for the final run.
+
+```{r}
+Bias<-function(R,rho){
+  Alphas<-vector(,R) # we store OLS estimates here
+  for (r in 1:R){
+    Data<-MyData(rho)
+    Reg<-lm(Data$Y~Data$D+Data$X)
+    Alphas[r]<-coef(summary(Reg))[2,1]
+  }
+  bias<-mean(Alphas)-1
+  return(bias)
+}
+```
+
+Let's check the function with a small `R`:
+```{r}
+Bias(10,0.5)
+```
+
+# Simulations 
+
+The values of $\rho$:
+```{r}
+Rho<-c(-3,-2,-1,0,1,2,3)
+```
+
+Below, we illustrate the use of `foreach()` from the package `foreach`.
+
+```{r}
+library(foreach)
+```
+
+We set the number of MC repetitions to 1,000.
+```{r}
+R=10^3
+Biases<-foreach(rho=Rho, .combine='cbind') %do% Bias(R,rho)
+Biases
+```
+
+### Seed
+
+Each time we run the simulations code above, we will get slightly different answers as a new random data set generated every time:
+```{r}
+Biases<-foreach(rho=Rho, .combine='cbind') %do% Bias(R,rho)
+Biases
+```
+
+We can make our results reproducible by fixing the seed so that the same sequence of random numbers is generated each time:
+```{r}
+set.seed(6083)
+Biases1<-foreach(rho=Rho, .combine='rbind') %do% Bias(R,rho)
+```
+
+Let's repeat:
+```{r}
+set.seed(6083)
+Biases<-foreach(rho=Rho, .combine='rbind') %do% Bias(R,rho)
+```
+
+Let's compare:
+```{r}
+cbind(Biases1,Biases)
+```
+
+
+You can see now that the results are exactly the same. You can change `6083` to any other number, and as long as you use the same number, the results will be exactly the same:
+```{r}
+Biases1-Biases
+```
+
+
+- **Important**: Do not put `set.seed()` inside your DGP function as it will generate the same data set every time.
+- We want different data sets generated across different iterations of `r=1:R` so we can average across them.
+
+# Presentation
+
+### Plot
+
+We can now plot the absolute value of the bias against the strength of endogeneity:
+
+```{r}
+plot(Rho,abs(Biases),type="l",xlab="Strengh of endogeneity",ylab="Abs.Bias",main="The bias of the OLS estimator as a function of the strength of endogeneity")
+```
+
+We can see that the absolute value of the bias increases with the strength of endogeneity.
+
+### Table
+
+We can also use the `kableExtra` package to present the results as a nice table
+
+```{r}
+library(kableExtra)
+```
+
+First, we combine the results with the values of $\rho$:
+```{r}
+OUT<-data.frame("Strenght of Endogeneity"=Rho,"Strenght of Endogeneity"=abs(Biases))
+```
+
+Now, we produce the table:
+```{r}
+OUT %>%
+  kable(digits=2,caption="Bias of the OLS estimator for different values of the endogeneity parameter $\\rho$ ",
+        align=c('c','c'),
+        col.names=c("Value of $\\rho$","Absolute Bias"),
+        row.names=F
+        ) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+
+# Measure CPU time
+
+- You can use `system.time()` too measure the CPU time used to run a code:
+
+```{r}
+system.time(
+ foreach(rho=Rho, .combine='rbind') %do% Bias(R,rho)
+)
+```
+
+# Parallel computing
+
+We can speed up computations by parallerizing our MC loops over multiple cores. We can use the `doParallel` package to parallerize some of the code:
+```{r}
+library(doParallel,quietly=T)
+```
+
+You can check the number of available physical cores using:
+```{r}
+detectCores(logical=F)
+```
+
+Next, "register" the cores:
+```{r}
+registerDoParallel(detectCores(logical=F))
+```
+
+- You can use `registerDoParallel(k)` where `k` is the number of cores you want to use.
+- Going over the number of physical cores usually does not help.instag
+
+
+Lastly, replace `%do%` with `%dopar%`:
+```{r}
+system.time(
+  B<-foreach(rho=Rho, .combine='rbind') %dopar% Bias(R,rho)
+)
+```
+
+**Note** the speed gain relatively to the original (non-parallel) code: the elapsed time is reduced!
+
+### Seed and parallel
+
+`set.seed()` does not work with parallel:
+
+```{r}
+set.seed(6081)
+B1<-foreach(rho=Rho, .combine='rbind') %dopar% Bias(R,rho)
+set.seed(6081)
+B2<-foreach(rho=Rho, .combine='rbind') %dopar% Bias(R,rho)
+```
+
+You can see that the results are slightly different:
+```{r}
+B1-B2
+```
+
+
+Instead of `set.seed()`, you can use the `doRNG` package:
+```{r}
+library(doRNG,quietly=T)
+```
+
+
+We will specify the seed option, and replace `%dopar%` with `%dorng`:
+```{r}
+P1<-foreach(rho=Rho, .options.RNG=6083, .combine='rbind') %dorng% Bias(R,rho)
+P2<-foreach(rho=Rho, .options.RNG=6083, .combine='rbind') %dorng% Bias(R,rho)
+Compare<-cbind(P1,P2,P1-P2)
+colnames(Compare)<-c("1st run","2nd run","difference")
+Compare
+```
+
+
+The results are now identical!
+
+Time performance is similar to `%dopar%`:
+
+```{r}
+system.time(
+  B<-foreach(rho=Rho, .options.RNG=6083, .combine='rbind') %dorng% Bias(R,rho)
+)
+```
+
+
+---
+
+
