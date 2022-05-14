@@ -1,6 +1,6 @@
 ---
 title: "Assignment 3"
-author: "JIANG RUI Chan Yat Tin"
+author: "JIANG Rui 3035869637  CHAN Yat Tin 3035869651"
 date: '2022-05-12'
 output: html_document
 ---
@@ -34,7 +34,8 @@ a<-as.data.frame(ct$coefficients)
 
 # Compute heteroskedasticity-robust standard errors and significance levels, where NAME is the name of a regression-type object created by lm() and other similar commands
 ROBUST <- coeftest(ct,vcov=vcovHC(ct, type = "HC0"))
-stargazer(ROBUST, type="text",title="Part A: Report the estimated coefficients, their heteroskedasticity-robust standard errors, and significance levels")
+# ROBUST
+stargazer(ROBUST, type="text",dep.var.labels="Cheater",title="Part A: Report the estimated coefficients, their heteroskedasticity-robust standard errors, and significance levels")
 happy_coef <- as.character(ROBUST[2,1])
 happy_se <- as.character(ROBUST[2,2])
 
@@ -73,13 +74,14 @@ Ans: From my perspective, the magnitude is drastically less than expected becaus
 # IV
 iv <- ivreg(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation) | yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
 iv_ROBUST <- coeftest(iv,vcov=vcovHC(iv, type = "HC0"))
+# iv_ROBUST
 # coefficient
 # iv_ROBUST[2,1]
 # SE
 # iv_ROBUST[2,2]
 
 # IV result presentation
-stargazer(iv_ROBUST, type="text",title="Part B: Report the IV estimates for the coefficient on happy and its heteroskedasticity-robust standard errors and significance levels")
+stargazer(iv_ROBUST, type="text",dep.var.labels = "Cheater" ,title="Part B: Report the IV estimates for the coefficient on happy and its heteroskedasticity-robust standard errors and significance levels")
 
 # CI
 happy_df_b <- as.data.frame(confint(iv_ROBUST,level=0.90)[2,])
@@ -90,7 +92,7 @@ stargazer(happy_90_ci_b, type="text",title="Part B: Report the heteroskedasticit
 first_stage <- lm(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation)) , data=Affairs)
 first_stage_robust <- coeftest(first_stage, type="HC0")
 # first_stage_robust
-stargazer(first_stage_robust,type="text",title="Part B: Report the first stage estimates with their heteroskedasticity-robust standard errors and significance levels" )
+stargazer(first_stage_robust,type="text",dep.var.labels = "Happy",title="Part B: Report the first stage estimates with their heteroskedasticity-robust standard errors and significance levels" )
 ```
 1. Report the IV estimates for the coefficient on happy and its heteroskedasticity-robust standard errors and significance levels. 
 
@@ -140,7 +142,7 @@ stargazer(post_lasso_table, type="text", title="Report the post-Lasso IV-based e
 # Second stage
 Second <- rlasso(Cheater~happy+gender+age+age2+children+as.factor(religiousness)+education+as.factor(occupation),data=Affairs )
 second_var <- which(Second$index==TRUE)
-second_var
+second_var 
 
 # First stage
 First <- rlasso(happy~yearsmarried + yearsmarried2 + (yearsmarried+yearsmarried2)*( gender + age + age2 + children + as.factor(religiousness)+education+as.factor(occupation) ), data=Affairs)
@@ -181,8 +183,8 @@ Ans: Part b and part c have much higher SE, suggesting that IV-based methods pro
 
 2. Which estimates make most sense?
 
-Ans: Part C as happy should not accounting for such minor effects on the probability of having affairs as in part a and part b, though the high SE is the tradeoff we have to admit.  
+Ans: Part C as happy should not be accounting for such minor effects on the probability of having affairs as in part a and part b, though the high SE is the trade-off we have to admit.  
 
 3. Are Lasso/post-Lasso methods useful here for improving estimation results?
 
-Ans: Yes. The estimates increase significantly in scale. Yet, standard error as well as wider CI are the tradeoffs.
+Ans: Yes. The estimates increase significantly in scale. Yet, standard error as well as wider CI are the trade-offs.
